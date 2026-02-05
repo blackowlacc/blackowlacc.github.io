@@ -9,7 +9,6 @@
   --accentA:#60a5fa;
   --accentB:#a78bfa;
 
-  /* derived (will be updated from JS when user changes UI colors) */
   --accentA_glow: rgba(96,165,250,.22);
   --accentB_glow: rgba(167,139,250,.18);
   --accentA_btn1: rgba(96,165,250,.45);
@@ -110,7 +109,7 @@ body.no-grid:before{ display:none; }
 .owlBrand{
   width: 48px;
   height: 48px;
-  flex: 0 0 48px;   /* <- biar gak pernah melebar */
+  flex: 0 0 48px; /* keep compact */
   display:grid;
   place-items:center;
   border-radius: 16px;

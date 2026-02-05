@@ -1,4 +1,3 @@
-<!doctype html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
@@ -11,8 +10,8 @@
   <!-- Header -->
   <header class="topbar">
     <div class="topLeft">
-      <div class="appTitle">Spinning Wheel</div>
-      <div class="appSub">Black Owl • compact • dynamic • theme studio</div>
+      <div class="appTitle">BLACK OWL SPINNING WHEEL</div>
+      <div class="appSub">Stay and get the prizes</div>
     </div>
 
     <div class="topRight">
@@ -21,38 +20,8 @@
 
       <!-- Brand logo: Black Owl (top-right) -->
       <div class="owlBrand" title="BLACK OWL" aria-label="Black Owl">
-        <svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true">
-          <defs>
-            <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="var(--brandGold)"/>
-              <stop offset="1" stop-color="color-mix(in srgb, var(--brandGold) 70%, white 30%)"/>
-            </linearGradient>
-          </defs>
+        <img src="LOGO-BO-1080.png" alt="Brand logo" class="brandImg" style="width: 40px; height: 46px; border-radius: 50%; ">
 
-          <!-- outer ring -->
-          <circle cx="32" cy="32" r="28" fill="rgba(0,0,0,.25)" stroke="url(#goldGrad)" stroke-width="2.5"/>
-          <circle cx="32" cy="32" r="23" fill="rgba(0,0,0,.12)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
-
-          <!-- owl (stylized) -->
-          <path d="M22 26
-                   C22 20, 28 18, 32 22
-                   C36 18, 42 20, 42 26
-                   C42 30, 40 34, 38 36
-                   C36 38, 34 39, 32 40
-                   C30 39, 28 38, 26 36
-                   C24 34, 22 30, 22 26 Z"
-                fill="none" stroke="url(#goldGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-
-          <path d="M26 27 C28 25, 30 25, 32 27
-                   C34 25, 36 25, 38 27"
-                fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round"/>
-
-          <path d="M30 33 L32 35 L34 33" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-
-          <!-- BO letters -->
-          <text x="18" y="38" font-size="11" fill="url(#goldGrad)" font-family="system-ui" font-weight="700">B</text>
-          <text x="42" y="38" font-size="11" fill="url(#goldGrad)" font-family="system-ui" font-weight="700">O</text>
-        </svg>
       </div>
     </div>
   </header>
@@ -184,6 +153,10 @@ Nama|Table|Color1|Color2|TextColor"></textarea>
             </label>
 
             <label class="field">
+              <span>Color C</span>
+              <input id="themeC" type="color" />
+            </label>
+            <label class="field">
               <span>Default Text</span>
               <input id="themeText" type="color" />
             </label>
@@ -191,9 +164,17 @@ Nama|Table|Color1|Color2|TextColor"></textarea>
             <label class="field">
               <span>Mode</span>
               <select id="themeMode" class="select">
-                <option value="spectrum">Spectrum (A → B)</option>
-                <option value="alternate">Alternate (A / B)</option>
-                <option value="mono">Mono (A only)</option>
+                <option value="spectrum">Spectrum</option>
+                <option value="alternate">Alternate</option>
+                <option value="mono">Mono</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Stops</span>
+              <select id="themeStops" class="select">
+                <option value="2">2 colors (A→B)</option>
+                <option value="3">3 colors (A→B→C)</option>
               </select>
             </label>
 
@@ -307,10 +288,10 @@ Nama|Table|Color1|Color2|TextColor"></textarea>
             </label>
 
             <label class="field">
-              <span>Remove winner after spin</span>
+              <span>Auto remove winners</span>
               <select id="removeAfterWin" class="select">
-                <option value="off">OFF</option>
                 <option value="on">ON</option>
+                <option value="off">OFF</option>
               </select>
             </label>
 
@@ -348,6 +329,72 @@ Nama|Table|Color1|Color2|TextColor"></textarea>
               <span>Max spins</span>
               <input id="maxSpins" type="number" min="1" max="80" step="1" class="input"/>
             </label>
+          </div>
+        </div>
+
+        <div class="panelCard">
+          <div class="panelTitle">Text</div>
+          <div class="grid2">
+            <label class="field">
+              <span>Font family</span>
+              <select id="fontFamily" class="select">
+                <option value="system-ui, -apple-system, Segoe UI, Roboto, Arial">System</option>
+                <option value="&quot;Poppins&quot;, system-ui, sans-serif">Poppins</option>
+                <option value="&quot;Montserrat&quot;, system-ui, sans-serif">Montserrat</option>
+                <option value="&quot;Trebuchet MS&quot;, Arial, sans-serif">Trebuchet</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="&quot;Courier New&quot;, monospace">Courier</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Font style</span>
+              <select id="fontStyle" class="select">
+                <option value="normal">Normal</option>
+                <option value="italic">Italic</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Name size</span>
+              <input id="nameFontSize" type="range" min="10" max="32" step="1"/>
+            </label>
+
+            <label class="field">
+              <span>Table size</span>
+              <input id="tableFontSize" type="range" min="9" max="26" step="1"/>
+            </label>
+
+            <label class="field">
+              <span>Name weight</span>
+              <select id="nameFontWeight" class="select">
+                <option value="600">600</option>
+                <option value="700">700</option>
+                <option value="800">800</option>
+                <option value="900">900</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Table weight</span>
+              <select id="tableFontWeight" class="select">
+                <option value="500">500</option>
+                <option value="600">600</option>
+                <option value="700">700</option>
+                <option value="800">800</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Text orientation</span>
+              <select id="textOrientation" class="select">
+                <option value="wheel">Follow wheel (smooth)</option>
+                <option value="upright">Upright (may flip)</option>
+              </select>
+            </label>
+          </div>
+          <div class="smallHint">
+            “Follow wheel” menghilangkan efek flip yang bikin posisi teks tiba‑tiba berubah.
           </div>
         </div>
       </section>
@@ -424,7 +471,7 @@ Nama|Table|Color1|Color2|TextColor"></textarea>
 
     <div class="winnerActions">
       <button id="spinAgainBtn" class="btn primary">Spin Again</button>
-      <button id="editWinnerBtn" class="btn ghost">Edit in List</button>
+      <button id="undoRemoveBtn" class="btn ghost">Undo remove</button>
     </div>
   </div>
 

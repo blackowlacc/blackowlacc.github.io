@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="color-scheme" content="dark" />
+  <title>Black Owl Spinning Wheel</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <!-- Header -->
+  <header class="topbar">
+    <div class="topLeft">
+      <div class="appTitle">Spinning Wheel</div>
+      <div class="appSub">Black Owl • compact • dynamic • theme studio</div>
+    </div>
+
+    <div class="topRight">
+      <button id="openDrawerBtn" class="iconBtn" title="Settings (S)">⚙️</button>
+      <button id="fullscreenBtn" class="iconBtn" title="Fullscreen (F)">⛶</button>
+
+      <!-- Brand logo: Black Owl (top-right) -->
+      <div class="owlBrand" title="BLACK OWL" aria-label="Black Owl">
+        <svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true">
+          <defs>
+            <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="var(--brandGold)"/>
+              <stop offset="1" stop-color="color-mix(in srgb, var(--brandGold) 70%, white 30%)"/>
+            </linearGradient>
+          </defs>
+
+          <!-- outer ring -->
+          <circle cx="32" cy="32" r="28" fill="rgba(0,0,0,.25)" stroke="url(#goldGrad)" stroke-width="2.5"/>
+          <circle cx="32" cy="32" r="23" fill="rgba(0,0,0,.12)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+
+          <!-- owl (stylized) -->
+          <path d="M22 26
+                   C22 20, 28 18, 32 22
+                   C36 18, 42 20, 42 26
+                   C42 30, 40 34, 38 36
+                   C36 38, 34 39, 32 40
+                   C30 39, 28 38, 26 36
+                   C24 34, 22 30, 22 26 Z"
+                fill="none" stroke="url(#goldGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <path d="M26 27 C28 25, 30 25, 32 27
+                   C34 25, 36 25, 38 27"
+                fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round"/>
+
+          <path d="M30 33 L32 35 L34 33" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- BO letters -->
+          <text x="18" y="38" font-size="11" fill="url(#goldGrad)" font-family="system-ui" font-weight="700">B</text>
+          <text x="42" y="38" font-size="11" fill="url(#goldGrad)" font-family="system-ui" font-weight="700">O</text>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stage -->
+  <main class="stage">
+    <div class="wheelShell">
+      <div class="canvasWrap">
+        <canvas id="wheelCanvas"></canvas>
+
+        <div class="pointer" aria-hidden="true">
+          <div class="pointerInner"></div>
+        </div>
+      </div>
+
+      <div class="stageBottom">
+        <button id="spinBtn" class="btn primary big">SPIN</button>
+
+        <button id="winnerInline" class="winnerInline" title="Klik untuk lihat winner popup lagi">
+          <div class="winnerLabel">Last winner</div>
+          <div id="winnerInlineText" class="winnerValue">-</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="hintLine">
+      Shortcut: <code>Space</code> spin • <code>L</code> list • <code>T</code> theme • <code>W</code> wheel • <code>F</code> fullscreen • <code>Esc</code> close
+    </div>
+  </main>
+
+  <!-- Floating action buttons -->
+  <div class="fabStack" aria-label="Quick actions">
+    <button class="fabBtn" data-open-tab="list" title="List (L)">
+      <span class="fabIcon">🧾</span><span class="fabText">List</span>
+    </button>
+    <button class="fabBtn" data-open-tab="theme" title="Theme (T)">
+      <span class="fabIcon">🎨</span><span class="fabText">Theme</span>
+    </button>
+    <button class="fabBtn" data-open-tab="wheel" title="Wheel (W)">
+      <span class="fabIcon">⚙️</span><span class="fabText">Wheel</span>
+    </button>
+    <button id="fabFullscreenBtn" class="fabBtn" title="Fullscreen (F)">
+      <span class="fabIcon">⛶</span><span class="fabText">Full</span>
+    </button>
+  </div>
+
+  <!-- Drawer + Backdrop -->
+  <div id="drawerBackdrop" class="backdrop" aria-hidden="true"></div>
+
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawerHead">
+      <div class="drawerTitle">Settings</div>
+      <button id="drawerCloseBtn" class="iconBtn" title="Close (Esc)">✕</button>
+    </div>
+
+    <nav class="tabBar" aria-label="Settings tabs">
+      <button class="tabBtn isActive" data-tab="list">List</button>
+      <button class="tabBtn" data-tab="theme">Theme</button>
+      <button class="tabBtn" data-tab="wheel">Wheel</button>
+      <button class="tabBtn" data-tab="center">Center</button>
+      <button class="tabBtn" data-tab="export">Export</button>
+    </nav>
+
+    <div class="drawerBody">
+      <!-- LIST TAB -->
+      <section class="tabPanel isActive" data-tab-panel="list">
+        <div class="panelCard">
+          <div class="panelRow">
+            <input id="quickName" class="input" placeholder="Nama (baris 1)" />
+            <input id="quickTable" class="input" placeholder="Table (baris 2) e.g. S1" />
+            <button id="quickAddBtn" class="btn">Add</button>
+          </div>
+
+          <div class="panelRow">
+            <button id="autoColorsBtn" class="btn">Auto Colors</button>
+            <button id="autoTextBtn" class="btn ghost">Auto Text</button>
+            <button id="clearWinnerBtn" class="btn ghost">Clear Winner</button>
+          </div>
+
+          <div class="panelRow">
+            <input id="searchInput" class="input" placeholder="Search name/table..." />
+            <div id="countPill" class="pill">0 items</div>
+          </div>
+        </div>
+
+        <details class="panelCard">
+          <summary class="summary">Bulk import (opsional)</summary>
+          <textarea id="bulkInput" class="textarea" rows="7" placeholder="Format per baris:
+Nama|S1
+Budi|V1
+Citra|T1|#ff6b6b|#c92a2a|#ffffff
+
+Kolom opsional:
+Nama|Table|Color1|Color2|TextColor"></textarea>
+          <div class="panelRow">
+            <button id="bulkReplaceBtn" class="btn">Replace</button>
+            <button id="bulkAppendBtn" class="btn">Append</button>
+          </div>
+          <div class="smallHint">Jika Gradient OFF, Color2 boleh kosong.</div>
+        </details>
+
+        <div id="itemsList" class="itemList"></div>
+      </section>
+
+      <!-- THEME TAB -->
+      <section class="tabPanel" data-tab-panel="theme">
+        <div class="panelCard">
+          <div class="panelTitle">Presets</div>
+          <div class="chipRow">
+            <button class="chipBtn" data-preset="neon">Neon</button>
+            <button class="chipBtn" data-preset="pastel">Pastel</button>
+            <button class="chipBtn" data-preset="corporate">Corporate</button>
+            <button class="chipBtn" data-preset="gold">Dark Gold</button>
+            <button class="chipBtn" data-preset="mono">Mono</button>
+          </div>
+        </div>
+
+        <div class="panelCard">
+          <div class="panelTitle">Theme Studio</div>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Color A</span>
+              <input id="themeA" type="color" />
+            </label>
+            <label class="field">
+              <span>Color B</span>
+              <input id="themeB" type="color" />
+            </label>
+
+            <label class="field">
+              <span>Default Text</span>
+              <input id="themeText" type="color" />
+            </label>
+
+            <label class="field">
+              <span>Mode</span>
+              <select id="themeMode" class="select">
+                <option value="spectrum">Spectrum (A → B)</option>
+                <option value="alternate">Alternate (A / B)</option>
+                <option value="mono">Mono (A only)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Lighten (Color1)</span>
+              <input id="themeLighten" type="range" min="-0.20" max="0.35" step="0.01"/>
+            </label>
+
+            <label class="field">
+              <span>Darken (Color2)</span>
+              <input id="themeDarken" type="range" min="-0.40" max="0.20" step="0.01"/>
+            </label>
+          </div>
+
+          <div class="paletteBox">
+            <div class="paletteHead">
+              <div class="panelTitle">Preview Palette</div>
+              <div id="paletteLabel" class="pill subtle">—</div>
+            </div>
+            <div id="palettePreview" class="palettePreview"></div>
+            <div class="smallHint">Atas = Color1, bawah = Color2.</div>
+          </div>
+
+          <div class="panelRow">
+            <button id="applyThemeBtn" class="btn primary">Apply to all slices</button>
+            <button id="randomThemeBtn" class="btn">Random</button>
+          </div>
+        </div>
+
+        <div class="panelCard">
+          <div class="panelTitle">Overlay Gradient</div>
+          <div class="grid2">
+            <label class="field">
+              <span>Overlay</span>
+              <select id="overlayEnabled" class="select">
+                <option value="off">OFF</option>
+                <option value="on">ON</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Opacity</span>
+              <input id="overlayAlpha" type="range" min="0" max="0.8" step="0.02"/>
+            </label>
+
+            <label class="field">
+              <span>Overlay A</span>
+              <input id="overlayA" type="color"/>
+            </label>
+            <label class="field">
+              <span>Overlay B</span>
+              <input id="overlayB" type="color"/>
+            </label>
+          </div>
+        </div>
+
+        <details class="panelCard">
+          <summary class="summary">UI Colors (advanced)</summary>
+          <div class="grid2">
+            <label class="field"><span>BG Top</span><input id="uiBg1" type="color"/></label>
+            <label class="field"><span>BG Bottom</span><input id="uiBg0" type="color"/></label>
+
+            <label class="field"><span>Accent A</span><input id="uiAccentA" type="color"/></label>
+            <label class="field"><span>Accent B</span><input id="uiAccentB" type="color"/></label>
+
+            <label class="field"><span>Text</span><input id="uiText" type="color"/></label>
+            <label class="field"><span>Muted</span><input id="uiMuted" type="color"/></label>
+
+            <label class="field"><span>Line/Border</span><input id="uiLine" type="color"/></label>
+            <label class="field"><span>Danger</span><input id="uiDanger" type="color"/></label>
+
+            <label class="field"><span>Brand Gold</span><input id="uiBrandGold" type="color"/></label>
+            <label class="field"><span>Pointer Outer</span><input id="uiPointerOuter" type="color"/></label>
+
+            <label class="field"><span>Pointer Inner</span><input id="uiPointerInner" type="color"/></label>
+
+            <label class="field">
+              <span>Effects</span>
+              <select id="uiEffects" class="select">
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Grid</span>
+              <select id="uiGrid" class="select">
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="panelRow">
+            <button id="resetUiBtn" class="btn ghost">Reset UI Colors</button>
+          </div>
+        </details>
+      </section>
+
+      <!-- WHEEL TAB -->
+      <section class="tabPanel" data-tab-panel="wheel">
+        <div class="panelCard">
+          <div class="panelTitle">Wheel Options</div>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Gradient</span>
+              <select id="gradientMode" class="select">
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Remove winner after spin</span>
+              <select id="removeAfterWin" class="select">
+                <option value="off">OFF</option>
+                <option value="on">ON</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Contour (px)</span>
+              <input id="contourWidth" type="number" min="0" max="20" step="1" class="input"/>
+            </label>
+
+            <label class="field">
+              <span>Contour Color</span>
+              <input id="contourColor" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>Outer Border (px)</span>
+              <input id="outerBorderWidth" type="number" min="0" max="30" step="1" class="input"/>
+            </label>
+
+            <label class="field">
+              <span>Outer Border Color</span>
+              <input id="outerBorderColor" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>Spin duration (ms)</span>
+              <input id="spinDurationMs" type="number" min="800" max="15000" step="100" class="input"/>
+            </label>
+
+            <label class="field">
+              <span>Min spins</span>
+              <input id="minSpins" type="number" min="1" max="50" step="1" class="input"/>
+            </label>
+
+            <label class="field">
+              <span>Max spins</span>
+              <input id="maxSpins" type="number" min="1" max="80" step="1" class="input"/>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- CENTER TAB -->
+      <section class="tabPanel" data-tab-panel="center">
+        <div class="panelCard">
+          <div class="panelTitle">Center Image</div>
+
+          <div class="panelRow">
+            <label class="btn fileBtn">
+              <input id="centerImageInput" type="file" accept="image/*"/>
+              Upload
+            </label>
+            <button id="removeCenterImageBtn" class="btn ghost">Remove</button>
+          </div>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Center radius</span>
+              <input id="centerRadius" type="number" min="20" max="220" step="1" class="input"/>
+            </label>
+
+            <label class="field">
+              <span>Center bg</span>
+              <input id="centerBg" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>Image scale</span>
+              <input id="centerImageScale" type="range" min="0.6" max="2" step="0.02"/>
+            </label>
+
+            <div class="previewCircle">
+              <img id="centerPreview" alt="Center preview"/>
+            </div>
+          </div>
+          <div class="smallHint">Scale mengatur zoom gambar di lingkaran tengah.</div>
+        </div>
+      </section>
+
+      <!-- EXPORT TAB -->
+      <section class="tabPanel" data-tab-panel="export">
+        <div class="panelCard">
+          <div class="panelTitle">Export / Import</div>
+
+          <div class="panelRow">
+            <button id="exportBtn" class="btn">Export JSON</button>
+            <button id="importBtn" class="btn">Import JSON</button>
+          </div>
+
+          <div class="panelRow">
+            <button id="resetAllBtn" class="btn ghost">Reset Defaults</button>
+            <button id="clearStorageBtn" class="btn danger">Clear Storage</button>
+          </div>
+
+          <textarea id="jsonBox" class="textarea" rows="8" placeholder="Hasil export / tempel JSON import di sini..."></textarea>
+          <div class="smallHint">Export akan masuk ke box + coba copy clipboard.</div>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Winner Modal -->
+  <div id="winnerModalBackdrop" class="modalBackdrop" aria-hidden="true"></div>
+  <div id="winnerModal" class="winnerModal" aria-hidden="true">
+    <div class="winnerTop">
+      <div class="winnerBadge">🎉 WINNER 🎉</div>
+      <button id="winnerCloseBtn" class="iconBtn" title="Close (Esc)">✕</button>
+    </div>
+
+    <div id="winnerName" class="winnerName">-</div>
+    <div id="winnerTable" class="winnerTable">-</div>
+
+    <div class="winnerActions">
+      <button id="spinAgainBtn" class="btn primary">Spin Again</button>
+      <button id="editWinnerBtn" class="btn ghost">Edit in List</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

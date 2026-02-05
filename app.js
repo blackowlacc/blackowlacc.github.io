@@ -1,6 +1,5 @@
 (() => {
-  const STORAGE_KEY = "black_owl_wheel_v3";
-
+  const STORAGE_KEY = "black_owl_wheel_v3_1";
   const $ = (id) => document.getElementById(id);
 
   // Canvas
@@ -17,7 +16,7 @@
   const fullscreenBtn = $("fullscreenBtn");
   const fabFullscreenBtn = $("fabFullscreenBtn");
 
-  // FAB open tabs
+  // FAB
   const fabStack = document.querySelector(".fabStack");
 
   // Drawer
@@ -41,11 +40,13 @@
   const bulkAppendBtn = $("bulkAppendBtn");
   const itemsList = $("itemsList");
 
-  // Theme tab elements
+  // Theme tab
   const themeA = $("themeA");
   const themeB = $("themeB");
+  const themeC = $("themeC");
   const themeText = $("themeText");
   const themeMode = $("themeMode");
+  const themeStops = $("themeStops");
   const themeLighten = $("themeLighten");
   const themeDarken = $("themeDarken");
   const applyThemeBtn = $("applyThemeBtn");
@@ -58,7 +59,7 @@
   const overlayA = $("overlayA");
   const overlayB = $("overlayB");
 
-  // UI colors (advanced)
+  // UI colors advanced
   const uiBg0 = $("uiBg0");
   const uiBg1 = $("uiBg1");
   const uiAccentA = $("uiAccentA");
@@ -85,6 +86,15 @@
   const minSpins = $("minSpins");
   const maxSpins = $("maxSpins");
 
+  // Text settings
+  const fontFamily = $("fontFamily");
+  const fontStyle = $("fontStyle");
+  const nameFontSize = $("nameFontSize");
+  const tableFontSize = $("tableFontSize");
+  const nameFontWeight = $("nameFontWeight");
+  const tableFontWeight = $("tableFontWeight");
+  const textOrientation = $("textOrientation");
+
   // Center tab
   const centerImageInput = $("centerImageInput");
   const removeCenterImageBtn = $("removeCenterImageBtn");
@@ -107,7 +117,7 @@
   const winnerName = $("winnerName");
   const winnerTable = $("winnerTable");
   const spinAgainBtn = $("spinAgainBtn");
-  const editWinnerBtn = $("editWinnerBtn");
+  const undoRemoveBtn = $("undoRemoveBtn");
 
   // Toast
   const toastEl = $("toast");
@@ -115,7 +125,6 @@
   const TWO_PI = Math.PI * 2;
   const START_ANGLE_OFFSET = -Math.PI / 2;
 
-  // Clone helper
   const clone = (obj) => (typeof structuredClone === "function")
     ? structuredClone(obj)
     : JSON.parse(JSON.stringify(obj));
@@ -133,12 +142,10 @@
     const n = parseInt(hex, 16);
     return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
   }
-
   function rgbToHex({r,g,b}){
     const to = v => clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
     return "#" + to(r) + to(g) + to(b);
   }
-
   function hexToRgba(hex, a){
     const {r,g,b} = hexToRgb(hex);
     return `rgba(${r},${g},${b},${a})`;
@@ -148,7 +155,6 @@
     if (amt < 0) return Math.round(channel * (1 + amt));
     return Math.round(channel + (255 - channel) * amt);
   }
-
   function adjustHex(hex, amt){
     let h = (hex || "").trim();
     if (!h) return "#999999";
@@ -173,11 +179,7 @@
   function mixHex(a, b, t){
     const A = hexToRgb(a), B = hexToRgb(b);
     const lerp = (x,y,t) => x + (y-x)*t;
-    return rgbToHex({
-      r: lerp(A.r, B.r, t),
-      g: lerp(A.g, B.g, t),
-      b: lerp(A.b, B.b, t),
-    });
+    return rgbToHex({ r: lerp(A.r,B.r,t), g: lerp(A.g,B.g,t), b: lerp(A.b,B.b,t) });
   }
 
   function safeColor(value, fallback){
@@ -204,8 +206,8 @@
     rotation: 0,
     isSpinning: false,
     activeTab: "list",
-    lastWinner: null, // {name, table, index, color1, color2, textColor}
-    pendingRemoveIndex: null,
+    lastWinner: null,
+    lastRemoved: null, // { item, index }
     centerImageDataUrl: null,
     options: [
       { name: "Budi", table: "S1", color1: "#ff6b6b", color2: "#c92a2a", textColor: "#ffffff" },
@@ -216,7 +218,8 @@
     ],
     settings: {
       gradient: "on",
-      removeAfterWin: "off",
+      removeAfterWin: "on",
+
       contourWidth: 2,
       contourColor: "#0b1020",
       outerBorderWidth: 6,
@@ -225,6 +228,15 @@
       minSpins: 6,
       maxSpins: 10,
 
+      // text settings
+      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontStyle: "normal",
+      nameFontSize: 16,
+      tableFontSize: 13,
+      nameFontWeight: 900,
+      tableFontWeight: 700,
+      textOrientation: "wheel", // wheel | upright
+
       centerRadius: 78,
       centerBg: "#0f1730",
       centerImageScale: 1.0,
@@ -232,8 +244,10 @@
       themeStudio: {
         a: "#60a5fa",
         b: "#a78bfa",
+        c: "#22c55e",
+        stops: 2, // 2 or 3
         text: "#ffffff",
-        mode: "spectrum",
+        mode: "spectrum", // spectrum | alternate | mono
         lighten: 0.08,
         darken: -0.22,
       },
@@ -250,7 +264,7 @@
         accentB: "#a78bfa",
         text: "#eaf0ff",
         muted: "#aab3d7",
-        line: "#ffffff",       // base line color (alpha will be applied)
+        line: "#ffffff",
         danger: "#ff6b6b",
         brandGold: "#c8a85a",
         pointerOuter: "#ffffff",
@@ -265,6 +279,9 @@
   let centerImage = null;
   let saveTimer = null;
   let toastTimer = null;
+
+  // freeze wheel render (so winner slice stays visible behind modal even after auto-remove)
+  let frozenWheel = null;
 
   function toast(msg, variant="info"){
     if (!toastEl) return;
@@ -297,8 +314,17 @@
       merged.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), (parsed.settings?.themeStudio)||{});
       merged.settings.overlay = Object.assign(clone(defaultState.settings.overlay), (parsed.settings?.overlay)||{});
       merged.settings.ui = Object.assign(clone(defaultState.settings.ui), (parsed.settings?.ui)||{});
-
       merged.options = Array.isArray(parsed.options) ? parsed.options : clone(defaultState.options);
+
+      // ensure new fields exist
+      merged.settings.themeStudio.c = merged.settings.themeStudio.c || defaultState.settings.themeStudio.c;
+      merged.settings.themeStudio.stops = Number(merged.settings.themeStudio.stops || defaultState.settings.themeStudio.stops);
+
+      merged.settings.nameFontSize = Number(merged.settings.nameFontSize || defaultState.settings.nameFontSize);
+      merged.settings.tableFontSize = Number(merged.settings.tableFontSize || defaultState.settings.tableFontSize);
+      merged.settings.nameFontWeight = Number(merged.settings.nameFontWeight || defaultState.settings.nameFontWeight);
+      merged.settings.tableFontWeight = Number(merged.settings.tableFontWeight || defaultState.settings.tableFontWeight);
+      merged.settings.textOrientation = merged.settings.textOrientation || defaultState.settings.textOrientation;
 
       return merged;
     }catch{
@@ -366,7 +392,6 @@
     winnerName.textContent = w.name || "-";
     winnerTable.textContent = w.table ? `Table: ${w.table}` : "-";
 
-    // tint modal slightly based on winner colors
     const a = w.color1 || "#60a5fa";
     const b = w.color2 || adjustHex(a, -0.22);
     winnerModal.style.background =
@@ -374,34 +399,25 @@
        radial-gradient(700px 300px at 90% 10%, ${hexToRgba(b, 0.14)}, transparent 60%),
        linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.24))`;
 
+    // show undo only if we removed someone
+    undoRemoveBtn.style.display = state.lastRemoved ? "" : "none";
+
     document.body.classList.add("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "false");
     winnerModal.setAttribute("aria-hidden", "false");
   }
 
-  function closeWinnerModal(applyPending = true){
+  function closeWinnerModal(){
     document.body.classList.remove("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "true");
     winnerModal.setAttribute("aria-hidden", "true");
 
-    if (applyPending) applyPendingRemoval();
-  }
-
-  function applyPendingRemoval(){
-    const idx = state.pendingRemoveIndex;
-    if (idx == null) return;
-    if (idx >= 0 && idx < state.options.length) {
-      state.options.splice(idx, 1);
-      toast("Winner removed from list.", "info");
-    }
-    state.pendingRemoveIndex = null;
-    saveState();
-    renderItems();
+    // unfreeze wheel now that popup is closed
+    frozenWheel = null;
     drawWheel();
-    syncCount();
   }
 
-  // ---------- Wheel drawing ----------
+  // ---------- canvas ----------
   function resizeCanvas(){
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -413,11 +429,11 @@
     return { w, h };
   }
 
-  function getSelectedIndex(){
-    const n = state.options.length;
+  function getSelectedIndex(rotation, optionsLen){
+    const n = optionsLen;
     if (!n) return null;
     const arc = TWO_PI / n;
-    const rel = normalizeAngle(-state.rotation);
+    const rel = normalizeAngle(-rotation);
     return clamp(Math.floor(rel / arc), 0, n - 1);
   }
 
@@ -443,9 +459,7 @@
       const ih = centerImage.naturalHeight || centerImage.height;
       const target = r * 2;
 
-      // cover + scale
       const coverScale = Math.max(target / iw, target / ih) * scaleMul;
-
       const dw = iw * coverScale;
       const dh = ih * coverScale;
       ctx.drawImage(centerImage, cx - dw/2, cy - dh/2, dw, dh);
@@ -456,7 +470,7 @@
       ctx.fillStyle = "rgba(255,255,255,.92)";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `900 18px system-ui`;
+      ctx.font = `900 18px ${state.settings.fontFamily || "system-ui"}`;
       ctx.fillText("SPIN", cx, cy);
       ctx.restore();
     }
@@ -477,7 +491,10 @@
     const cx = w/2, cy = h/2;
     const radius = Math.min(w,h)/2 - 22;
 
-    const n = state.options.length;
+    const wheelOptions = frozenWheel ? frozenWheel.options : state.options;
+    const rotation = frozenWheel ? frozenWheel.rotation : state.rotation;
+    const n = wheelOptions.length;
+
     if (!n) {
       ctx.save();
       ctx.fillStyle = "rgba(255,255,255,.75)";
@@ -499,9 +516,17 @@
     ctx.fill();
     ctx.restore();
 
+    const ff = state.settings.fontFamily || "system-ui";
+    const fstyle = state.settings.fontStyle || "normal";
+    const nameSize = clamp(Number(state.settings.nameFontSize) || 16, 10, 40);
+    const tableSize = clamp(Number(state.settings.tableFontSize) || 13, 8, 32);
+    const nameW = clamp(Number(state.settings.nameFontWeight) || 900, 100, 950);
+    const tableW = clamp(Number(state.settings.tableFontWeight) || 700, 100, 950);
+    const orientation = state.settings.textOrientation || "wheel";
+
     for (let i=0; i<n; i++){
-      const o = state.options[i];
-      const start = state.rotation + START_ANGLE_OFFSET + i*arc;
+      const o = wheelOptions[i];
+      const start = rotation + START_ANGLE_OFFSET + i*arc;
       const end = start + arc;
 
       // slice fill
@@ -549,21 +574,36 @@
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(mid);
-
       ctx.translate(radius*0.66, 0);
 
       const ang = normalizeAngle(mid);
-      if (ang > Math.PI/2 && ang < 3*Math.PI/2) ctx.rotate(Math.PI);
+
+      // Fix "posisi tiba2 berubah":
+      // default = follow wheel (no flip), optional upright flip with stable line order.
+      let flip = false;
+      if (orientation === "upright") {
+        flip = ang > Math.PI/2 && ang < 3*Math.PI/2;
+        if (flip) ctx.rotate(Math.PI);
+      }
 
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = o.textColor || "#ffffff";
 
-      ctx.font = "900 16px system-ui";
-      ctx.fillText(name, 0, -10);
+      let nameY = -Math.max(8, nameSize * 0.55);
+      let tableY = Math.max(10, tableSize * 0.85);
 
-      ctx.font = "700 13px system-ui";
-      ctx.fillText(table, 0, 12);
+      // keep line order stable even if flipped
+      if (flip) {
+        nameY = -nameY;
+        tableY = -tableY;
+      }
+
+      ctx.font = `${fstyle} ${nameW} ${nameSize}px ${ff}`;
+      ctx.fillText(name, 0, nameY);
+
+      ctx.font = `${fstyle} ${tableW} ${tableSize}px ${ff}`;
+      ctx.fillText(table, 0, tableY);
 
       ctx.restore();
     }
@@ -597,11 +637,11 @@
       ctx.restore();
     }
 
-    // winner highlight (if still in list)
-    if (!state.isSpinning && state.lastWinner && state.lastWinner.index != null) {
-      const i = state.lastWinner.index;
+    // highlight winner (when frozen wheel exists)
+    if (frozenWheel && frozenWheel.winnerIndex != null) {
+      const i = frozenWheel.winnerIndex;
       if (i >= 0 && i < n) {
-        const start = state.rotation + START_ANGLE_OFFSET + i*arc;
+        const start = rotation + START_ANGLE_OFFSET + i*arc;
         const end = start + arc;
 
         ctx.save();
@@ -619,10 +659,167 @@
     drawCenter(cx, cy);
   }
 
-  // ---------- Items rendering ----------
+  // ---------- Theme Studio ----------
+  function getThemeBaseColor(i, n, mode, a, b, c, stops){
+    if (mode === "mono") return a;
+
+    if (mode === "alternate") {
+      if (stops === 3) {
+        const m = i % 3;
+        return m === 0 ? a : (m === 1 ? b : c);
+      }
+      return (i % 2 === 0) ? a : b;
+    }
+
+    // spectrum
+    const t = (n === 1) ? 0 : (i/(n-1));
+    if (stops === 3) {
+      if (t < 0.5) return mixHex(a, b, t*2);
+      return mixHex(b, c, (t-0.5)*2);
+    }
+    return mixHex(a, b, t);
+  }
+
+  function renderPalette(){
+    const ts = state.settings.themeStudio;
+    const a = ts.a, b = ts.b, c = ts.c;
+    const mode = ts.mode;
+    const stops = Number(ts.stops) === 3 ? 3 : 2;
+    const lighten = Number(ts.lighten), darken = Number(ts.darken);
+
+    // disable Color C input if stops=2 (UX)
+    themeC.disabled = stops !== 3;
+    themeC.title = (stops !== 3) ? "Set Stops=3 untuk pakai Color C" : "";
+
+    const chipCount = Math.max(8, Math.min(16, state.options.length || 8));
+    palettePreview.innerHTML = "";
+
+    for (let i=0; i<chipCount; i++){
+      const base = getThemeBaseColor(i, chipCount, mode, a, b, c, stops);
+      const c1 = adjustHex(base, lighten);
+      const c2 = adjustHex(base, darken);
+
+      const chip = document.createElement("div");
+      chip.className = "chip";
+
+      const top = document.createElement("div");
+      top.className = "chipTop";
+      top.style.background = c1;
+
+      const bot = document.createElement("div");
+      bot.className = "chipBot";
+      bot.style.background = c2;
+
+      chip.append(top, bot);
+      chip.title = `Color1: ${c1}\nColor2: ${c2}`;
+      palettePreview.appendChild(chip);
+    }
+
+    const g = state.settings.gradient === "on" ? "Gradient ON" : "Gradient OFF";
+    paletteLabel.textContent = `${mode} • ${stops} stops • ${g}`;
+  }
+
+  function applyThemeToAll(){
+    const ts = state.settings.themeStudio;
+    const a = ts.a, b = ts.b, c = ts.c;
+    const mode = ts.mode;
+    const stops = Number(ts.stops) === 3 ? 3 : 2;
+    const lighten = Number(ts.lighten), darken = Number(ts.darken);
+    const txt = ts.text;
+
+    const n = state.options.length;
+    state.options = state.options.map((o,i) => {
+      const base = getThemeBaseColor(i, Math.max(1,n), mode, a, b, c, stops);
+      return {
+        ...o,
+        color1: adjustHex(base, lighten),
+        color2: adjustHex(base, darken),
+        textColor: txt,
+      };
+    });
+
+    saveState();
+    renderItems();
+    drawWheel();
+    toast("Theme applied to all slices.", "success");
+  }
+
+  function randomizeTheme(){
+    const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
+    state.settings.themeStudio.a = randHex();
+    state.settings.themeStudio.b = randHex();
+    state.settings.themeStudio.c = randHex();
+    saveState();
+    syncThemeUI();
+    renderPalette();
+    drawWheel();
+    toast("Random theme generated.", "info");
+  }
+
+  function applyPreset(name){
+    const ts = state.settings.themeStudio;
+
+    if (name === "neon") {
+      ts.a = "#22d3ee"; ts.b = "#a78bfa"; ts.c = "#22c55e";
+      ts.stops = 3;
+      ts.text = "#0b1022";
+      ts.mode = "spectrum";
+      ts.lighten = 0.10; ts.darken = -0.30;
+      state.settings.overlay.enabled = "on";
+      state.settings.overlay.alpha = 0.18;
+      state.settings.overlay.a = "#22c55e";
+      state.settings.overlay.b = "#3b82f6";
+    } else if (name === "pastel") {
+      ts.a = "#fca5a5"; ts.b = "#93c5fd"; ts.c = "#a7f3d0";
+      ts.stops = 3;
+      ts.text = "#111827";
+      ts.mode = "spectrum";
+      ts.lighten = 0.12; ts.darken = -0.18;
+      state.settings.overlay.enabled = "off";
+    } else if (name === "corporate") {
+      ts.a = "#60a5fa"; ts.b = "#22c55e"; ts.c = "#94a3b8";
+      ts.stops = 2;
+      ts.text = "#0b1022";
+      ts.mode = "alternate";
+      ts.lighten = 0.06; ts.darken = -0.22;
+      state.settings.overlay.enabled = "off";
+    } else if (name === "gold") {
+      ts.a = "#c8a85a"; ts.b = "#6b7280"; ts.c = "#111827";
+      ts.stops = 3;
+      ts.text = "#ffffff";
+      ts.mode = "alternate";
+      ts.lighten = 0.08; ts.darken = -0.26;
+      state.settings.overlay.enabled = "on";
+      state.settings.overlay.alpha = 0.12;
+      state.settings.overlay.a = "#c8a85a";
+      state.settings.overlay.b = "#111827";
+    } else if (name === "mono") {
+      ts.a = "#94a3b8"; ts.b = "#94a3b8"; ts.c = "#94a3b8";
+      ts.stops = 2;
+      ts.text = "#0b1022";
+      ts.mode = "mono";
+      ts.lighten = 0.10; ts.darken = -0.18;
+      state.settings.overlay.enabled = "off";
+    }
+
+    saveState();
+    syncThemeUI();
+    renderPalette();
+    drawWheel();
+    toast(`Preset applied: ${name}`, "success");
+  }
+
+  // ---------- List ----------
   function syncCount(){
-    if (!countPill) return;
     countPill.textContent = `${state.options.length} items`;
+  }
+
+  function syncWinnerInline(){
+    if (!state.lastWinner) {
+      winnerInlineText.textContent = "-";
+      return;
+    }
+    winnerInlineText.textContent = `${state.lastWinner.name} • ${state.lastWinner.table}`;
   }
 
   function renderItems(){
@@ -685,7 +882,6 @@
 
       top.append(no, name, table, up, down, del);
 
-      // Colors details
       const details = document.createElement("details");
       details.className = "colorsDetails";
 
@@ -721,7 +917,6 @@
       tx.dataset.index = String(idx);
 
       grid.append(c1, c2, tx);
-
       details.append(summary, grid);
 
       card.append(top, details);
@@ -731,7 +926,6 @@
     syncCount();
   }
 
-  // Event delegation for list changes
   itemsList.addEventListener("input", (e) => {
     const t = e.target;
     const idx = Number(t.dataset.index);
@@ -743,22 +937,16 @@
       state.options[idx][field] = t.value;
       scheduleSave();
       drawWheel();
-      syncWinnerInline();
       return;
     }
 
     if (field === "color1") {
       state.options[idx].color1 = t.value;
-      // update swatch quickly
       const card = t.closest(".itemCard");
       const sw = card?.querySelector(".swatch");
       if (sw) sw.style.background = t.value;
 
-      // auto set color2 if empty
-      if (!state.options[idx].color2) {
-        state.options[idx].color2 = adjustHex(t.value, -0.22);
-      }
-
+      if (!state.options[idx].color2) state.options[idx].color2 = adjustHex(t.value, -0.22);
       scheduleSave();
       drawWheel();
       return;
@@ -789,13 +977,6 @@
     if (action === "delete") {
       if (!confirm("Hapus item ini?")) return;
       state.options.splice(idx, 1);
-
-      // if lastWinner index might shift
-      if (state.lastWinner?.index != null) {
-        if (state.lastWinner.index === idx) state.lastWinner.index = null;
-        else if (state.lastWinner.index > idx) state.lastWinner.index -= 1;
-      }
-
       saveState();
       renderItems();
       drawWheel();
@@ -807,11 +988,6 @@
       const tmp = state.options[idx-1];
       state.options[idx-1] = state.options[idx];
       state.options[idx] = tmp;
-
-      // adjust winner index
-      if (state.lastWinner?.index === idx) state.lastWinner.index = idx-1;
-      else if (state.lastWinner?.index === idx-1) state.lastWinner.index = idx;
-
       saveState();
       renderItems();
       drawWheel();
@@ -822,10 +998,6 @@
       const tmp = state.options[idx+1];
       state.options[idx+1] = state.options[idx];
       state.options[idx] = tmp;
-
-      if (state.lastWinner?.index === idx) state.lastWinner.index = idx+1;
-      else if (state.lastWinner?.index === idx+1) state.lastWinner.index = idx;
-
       saveState();
       renderItems();
       drawWheel();
@@ -833,145 +1005,13 @@
     }
   });
 
-  // ---------- Theme Studio preview ----------
-  function getThemeBaseColor(i, n, mode, a, b){
-    if (mode === "mono") return a;
-    if (mode === "alternate") return (i % 2 === 0) ? a : b;
-    const t = (n === 1) ? 0 : (i/(n-1));
-    return mixHex(a, b, t);
-  }
-
-  function renderPalette(){
-    const ts = state.settings.themeStudio;
-    const a = ts.a, b = ts.b, mode = ts.mode;
-    const lighten = Number(ts.lighten), darken = Number(ts.darken);
-
-    const chipCount = Math.max(8, Math.min(16, state.options.length || 8));
-    palettePreview.innerHTML = "";
-
-    for (let i=0; i<chipCount; i++){
-      const base = getThemeBaseColor(i, chipCount, mode, a, b);
-      const c1 = adjustHex(base, lighten);
-      const c2 = adjustHex(base, darken);
-
-      const chip = document.createElement("div");
-      chip.className = "chip";
-
-      const top = document.createElement("div");
-      top.className = "chipTop";
-      top.style.background = c1;
-
-      const bot = document.createElement("div");
-      bot.className = "chipBot";
-      bot.style.background = c2;
-
-      chip.append(top, bot);
-      chip.title = `Color1: ${c1}\nColor2: ${c2}`;
-      palettePreview.appendChild(chip);
-    }
-
-    paletteLabel.textContent = `${mode} • ${state.settings.gradient === "on" ? "Gradient ON" : "Gradient OFF"}`;
-  }
-
-  function applyThemeToAll(){
-    const ts = state.settings.themeStudio;
-    const a = ts.a, b = ts.b, mode = ts.mode;
-    const lighten = Number(ts.lighten), darken = Number(ts.darken);
-    const txt = ts.text;
-
-    const n = state.options.length;
-    state.options = state.options.map((o,i) => {
-      const base = getThemeBaseColor(i, Math.max(1,n), mode, a, b);
-      return {
-        ...o,
-        color1: adjustHex(base, lighten),
-        color2: adjustHex(base, darken),
-        textColor: txt,
-      };
-    });
-
-    saveState();
-    renderItems();
-    drawWheel();
-    toast("Theme applied to all slices.", "success");
-  }
-
-  function randomizeTheme(){
-    const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
-    state.settings.themeStudio.a = randHex();
-    state.settings.themeStudio.b = randHex();
-    saveState();
-    syncThemeUI();
-    renderPalette();
-    drawWheel();
-    toast("Random theme generated.", "info");
-  }
-
-  function applyPreset(name){
-    const ts = state.settings.themeStudio;
-
-    if (name === "neon") {
-      ts.a = "#22d3ee";
-      ts.b = "#a78bfa";
-      ts.text = "#0b1022";
-      ts.mode = "spectrum";
-      ts.lighten = 0.10;
-      ts.darken = -0.30;
-      state.settings.overlay.enabled = "on";
-      state.settings.overlay.alpha = 0.18;
-      state.settings.overlay.a = "#22c55e";
-      state.settings.overlay.b = "#3b82f6";
-    } else if (name === "pastel") {
-      ts.a = "#fca5a5";
-      ts.b = "#93c5fd";
-      ts.text = "#111827";
-      ts.mode = "spectrum";
-      ts.lighten = 0.12;
-      ts.darken = -0.18;
-      state.settings.overlay.enabled = "off";
-    } else if (name === "corporate") {
-      ts.a = "#60a5fa";
-      ts.b = "#22c55e";
-      ts.text = "#0b1022";
-      ts.mode = "alternate";
-      ts.lighten = 0.06;
-      ts.darken = -0.22;
-      state.settings.overlay.enabled = "off";
-    } else if (name === "gold") {
-      ts.a = "#c8a85a";
-      ts.b = "#6b7280";
-      ts.text = "#ffffff";
-      ts.mode = "alternate";
-      ts.lighten = 0.08;
-      ts.darken = -0.26;
-      state.settings.overlay.enabled = "on";
-      state.settings.overlay.alpha = 0.12;
-      state.settings.overlay.a = "#c8a85a";
-      state.settings.overlay.b = "#111827";
-    } else if (name === "mono") {
-      ts.a = "#94a3b8";
-      ts.b = "#94a3b8";
-      ts.text = "#0b1022";
-      ts.mode = "mono";
-      ts.lighten = 0.10;
-      ts.darken = -0.18;
-      state.settings.overlay.enabled = "off";
-    }
-
-    saveState();
-    syncThemeUI();
-    renderPalette();
-    drawWheel();
-    toast(`Preset applied: ${name}`, "success");
-  }
-
   // ---------- Bulk ----------
   function parseBulk(text){
     const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
     const out = [];
     for (const line of lines){
       const parts = line.includes("|") ? line.split("|") : line.split(",");
-      const p = parts.map(x=>x.trim()).filter(x=>x.length>0);
+      const p = parts.map(x=>x.trim()).filter(x => x.length>0);
       if (p.length < 2) continue;
 
       const c1 = p[2] ? safeColor(p[2], "#888888") : "#888888";
@@ -993,23 +1033,21 @@
     if (state.isSpinning) return;
     if (state.options.length < 2) return toast("Minimal 2 opsi untuk spin.", "error");
 
-    // if modal open, close it
-    if (document.body.classList.contains("modal-open")) closeWinnerModal(true);
+    // close modal if open
+    if (document.body.classList.contains("modal-open")) closeWinnerModal();
 
     state.isSpinning = true;
     document.body.classList.add("spinning");
     spinBtn.disabled = true;
 
-    const n = state.options.length;
+    const preOptions = state.options;
+    const n = preOptions.length;
     const arc = TWO_PI / n;
 
-    // choose target index uniformly
     const winnerIdx = Math.floor(Math.random() * n);
-
     const safeOffset = (Math.random() * arc * 0.85) + (arc * 0.075);
     const rel = winnerIdx * arc + safeOffset;
 
-    // want: rel = normalize(-rotation)
     const finalNorm = normalizeAngle(TWO_PI - rel);
     const currentNorm = normalizeAngle(state.rotation);
     const deltaToFinal = normalizeAngle(finalNorm - currentNorm);
@@ -1038,37 +1076,42 @@
         document.body.classList.remove("spinning");
         spinBtn.disabled = false;
 
-        const finalIndex = getSelectedIndex();
-        const o = state.options[finalIndex];
+        // resolve winner on PRE-REMOVE wheel
+        const finalIndex = getSelectedIndex(state.rotation, preOptions.length);
+        const winnerItem = preOptions[finalIndex];
 
-        state.lastWinner = {
-          name: o?.name ?? "",
-          table: o?.table ?? "",
-          index: finalIndex,
-          color1: o?.color1 ?? "#60a5fa",
-          color2: o?.color2 ?? adjustHex(o?.color1 ?? "#60a5fa", -0.22),
-          textColor: o?.textColor ?? "#ffffff"
+        // freeze wheel snapshot so it still shows correct winner slice behind modal
+        frozenWheel = {
+          rotation: state.rotation,
+          options: clone(preOptions),
+          winnerIndex: finalIndex,
         };
 
-        // if remove after win, delay removal until modal close
-        state.pendingRemoveIndex = (state.settings.removeAfterWin === "on") ? finalIndex : null;
+        state.lastWinner = {
+          name: winnerItem?.name ?? "",
+          table: winnerItem?.table ?? "",
+          color1: winnerItem?.color1 ?? "#60a5fa",
+          color2: winnerItem?.color2 ?? adjustHex(winnerItem?.color1 ?? "#60a5fa", -0.22),
+          textColor: winnerItem?.textColor ?? "#ffffff"
+        };
+
+        // AUTO REMOVE winner from live list (so next spin won't include it)
+        state.lastRemoved = null;
+        if (state.settings.removeAfterWin === "on") {
+          state.lastRemoved = { item: clone(winnerItem), index: finalIndex };
+          state.options.splice(finalIndex, 1);
+          toast("Winner removed from list.", "info");
+        }
 
         saveState();
+        renderItems();
         syncWinnerInline();
-
+        drawWheel(); // uses frozenWheel => still shows winner slice
         openWinnerModal();
       }
     };
 
     requestAnimationFrame(tick);
-  }
-
-  function syncWinnerInline(){
-    if (!state.lastWinner) {
-      winnerInlineText.textContent = "-";
-      return;
-    }
-    winnerInlineText.textContent = `${state.lastWinner.name} • ${state.lastWinner.table}`;
   }
 
   // ---------- Center image ----------
@@ -1100,12 +1143,23 @@
   }
 
   // ---------- Sync UI inputs ----------
+  function syncThemeUI(){
+    const ts = state.settings.themeStudio;
+    themeA.value = safeColor(ts.a, "#60a5fa");
+    themeB.value = safeColor(ts.b, "#a78bfa");
+    themeC.value = safeColor(ts.c, "#22c55e");
+    themeText.value = safeColor(ts.text, "#ffffff");
+    themeMode.value = ts.mode;
+    themeStops.value = String(Number(ts.stops) === 3 ? 3 : 2);
+    themeLighten.value = String(ts.lighten);
+    themeDarken.value = String(ts.darken);
+  }
+
   function syncAllInputsFromState(){
-    // List
     syncCount();
     syncWinnerInline();
 
-    // Theme studio
+    // Theme
     syncThemeUI();
 
     // Overlay
@@ -1124,6 +1178,15 @@
     spinDurationMs.value = String(state.settings.spinDurationMs);
     minSpins.value = String(state.settings.minSpins);
     maxSpins.value = String(state.settings.maxSpins);
+
+    // Text
+    fontFamily.value = state.settings.fontFamily;
+    fontStyle.value = state.settings.fontStyle;
+    nameFontSize.value = String(state.settings.nameFontSize);
+    tableFontSize.value = String(state.settings.tableFontSize);
+    nameFontWeight.value = String(state.settings.nameFontWeight);
+    tableFontWeight.value = String(state.settings.tableFontWeight);
+    textOrientation.value = state.settings.textOrientation;
 
     // Center
     centerRadius.value = String(state.settings.centerRadius);
@@ -1145,16 +1208,6 @@
     uiPointerInner.value = safeColor(ui.pointerInner, "#60a5fa");
     uiEffects.value = ui.effects;
     uiGrid.value = ui.grid;
-  }
-
-  function syncThemeUI(){
-    const ts = state.settings.themeStudio;
-    themeA.value = safeColor(ts.a, "#60a5fa");
-    themeB.value = safeColor(ts.b, "#a78bfa");
-    themeText.value = safeColor(ts.text, "#ffffff");
-    themeMode.value = ts.mode;
-    themeLighten.value = String(ts.lighten);
-    themeDarken.value = String(ts.darken);
   }
 
   // ---------- Events ----------
@@ -1188,25 +1241,25 @@
   });
 
   // Winner modal actions
-  winnerCloseBtn.addEventListener("click", () => closeWinnerModal(true));
-  winnerModalBackdrop.addEventListener("click", () => closeWinnerModal(true));
-
+  winnerCloseBtn.addEventListener("click", closeWinnerModal);
+  winnerModalBackdrop.addEventListener("click", closeWinnerModal);
   spinAgainBtn.addEventListener("click", () => {
-    closeWinnerModal(true);
+    closeWinnerModal();
     doSpin();
   });
 
-  editWinnerBtn.addEventListener("click", () => {
-    closeWinnerModal(false);
-    openDrawer("list");
-    // scroll to winner card if still exists
-    const idx = state.lastWinner?.index;
-    if (idx != null) {
-      setTimeout(() => {
-        const el = itemsList.querySelector(`.itemCard[data-index="${idx}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 50);
-    }
+  undoRemoveBtn.addEventListener("click", () => {
+    if (!state.lastRemoved) return;
+    const { item, index } = state.lastRemoved;
+    const insertAt = clamp(Number(index) || 0, 0, state.options.length);
+    state.options.splice(insertAt, 0, item);
+    state.lastRemoved = null;
+    saveState();
+    renderItems();
+    drawWheel();
+    toast("Undo: winner restored to list.", "success");
+    // keep modal open; button will hide next refresh
+    undoRemoveBtn.style.display = "none";
   });
 
   // Quick add
@@ -1214,19 +1267,12 @@
     const name = (quickName.value || "").trim();
     const table = (quickTable.value || "").trim();
     if (!name) return toast("Nama wajib diisi.", "error");
-    state.options.push({
-      name,
-      table,
-      color1: "#888888",
-      color2: "#555555",
-      textColor: "#ffffff"
-    });
+    state.options.push({ name, table, color1:"#888888", color2:"#555555", textColor:"#ffffff" });
     quickName.value = "";
     quickTable.value = "";
     saveState();
     renderItems();
     drawWheel();
-    syncCount();
     renderPalette();
     toast("Item added.", "success");
   });
@@ -1237,11 +1283,7 @@
     state.options = state.options.map((o,i) => {
       const h = (i * 360 / Math.max(1,n)) % 360;
       const base = hslToHex(h, 85, 60);
-      return {
-        ...o,
-        color1: adjustHex(base, +0.08),
-        color2: adjustHex(base, -0.22),
-      };
+      return { ...o, color1: adjustHex(base, +0.08), color2: adjustHex(base, -0.22) };
     });
     saveState();
     renderItems();
@@ -1250,7 +1292,6 @@
   });
 
   autoTextBtn.addEventListener("click", () => {
-    // simple contrast from color1
     function luminance(hex){
       const {r,g,b} = hexToRgb(hex);
       const a = [r,g,b].map(v => {
@@ -1261,8 +1302,7 @@
     }
     state.options = state.options.map(o => {
       const c = safeColor(o.color1, "#888888");
-      const L = luminance(c);
-      return { ...o, textColor: (L > 0.55 ? "#111111" : "#ffffff") };
+      return { ...o, textColor: (luminance(c) > 0.55 ? "#111111" : "#ffffff") };
     });
     saveState();
     renderItems();
@@ -1272,14 +1312,14 @@
 
   clearWinnerBtn.addEventListener("click", () => {
     state.lastWinner = null;
-    state.pendingRemoveIndex = null;
+    state.lastRemoved = null;
+    frozenWheel = null;
     saveState();
     syncWinnerInline();
     drawWheel();
     toast("Winner cleared.", "info");
   });
 
-  // Search filter
   searchInput.addEventListener("input", renderItems);
 
   // Bulk
@@ -1288,7 +1328,8 @@
     if (!parsed.length) return toast("Bulk invalid. Minimal: Nama|S1 per baris.", "error");
     state.options = parsed;
     state.lastWinner = null;
-    state.pendingRemoveIndex = null;
+    state.lastRemoved = null;
+    frozenWheel = null;
     saveState();
     renderItems();
     drawWheel();
@@ -1309,23 +1350,33 @@
   });
 
   // Theme inputs
-  [themeA, themeB, themeText].forEach(inp => inp.addEventListener("input", () => {
+  [themeA, themeB, themeC, themeText].forEach(inp => inp.addEventListener("input", () => {
     state.settings.themeStudio.a = themeA.value;
     state.settings.themeStudio.b = themeB.value;
+    state.settings.themeStudio.c = themeC.value;
     state.settings.themeStudio.text = themeText.value;
     saveState();
     renderPalette();
   }));
+
   themeMode.addEventListener("change", () => {
     state.settings.themeStudio.mode = themeMode.value;
     saveState();
     renderPalette();
   });
+
+  themeStops.addEventListener("change", () => {
+    state.settings.themeStudio.stops = Number(themeStops.value) === 3 ? 3 : 2;
+    saveState();
+    renderPalette();
+  });
+
   themeLighten.addEventListener("input", () => {
     state.settings.themeStudio.lighten = Number(themeLighten.value);
     saveState();
     renderPalette();
   });
+
   themeDarken.addEventListener("input", () => {
     state.settings.themeStudio.darken = Number(themeDarken.value);
     saveState();
@@ -1340,28 +1391,16 @@
   });
 
   // Overlay
-  overlayEnabled.addEventListener("change", () => {
-    state.settings.overlay.enabled = overlayEnabled.value;
-    saveState(); drawWheel();
-  });
-  overlayAlpha.addEventListener("input", () => {
-    state.settings.overlay.alpha = Number(overlayAlpha.value);
-    saveState(); drawWheel();
-  });
-  overlayA.addEventListener("input", () => {
-    state.settings.overlay.a = overlayA.value;
-    saveState(); drawWheel();
-  });
-  overlayB.addEventListener("input", () => {
-    state.settings.overlay.b = overlayB.value;
-    saveState(); drawWheel();
-  });
+  overlayEnabled.addEventListener("change", () => { state.settings.overlay.enabled = overlayEnabled.value; saveState(); drawWheel(); });
+  overlayAlpha.addEventListener("input", () => { state.settings.overlay.alpha = Number(overlayAlpha.value); saveState(); drawWheel(); });
+  overlayA.addEventListener("input", () => { state.settings.overlay.a = overlayA.value; saveState(); drawWheel(); });
+  overlayB.addEventListener("input", () => { state.settings.overlay.b = overlayB.value; saveState(); drawWheel(); });
 
   // Wheel settings
   gradientMode.addEventListener("change", () => {
     state.settings.gradient = gradientMode.value;
     saveState();
-    renderItems(); // refresh Color2 disabled state
+    renderItems();
     drawWheel();
     renderPalette();
   });
@@ -1369,55 +1408,40 @@
   removeAfterWin.addEventListener("change", () => {
     state.settings.removeAfterWin = removeAfterWin.value;
     saveState();
-    toast(`Remove after win: ${removeAfterWin.value.toUpperCase()}`, "info");
+    toast(`Auto remove winners: ${removeAfterWin.value.toUpperCase()}`, "info");
   });
 
-  contourWidth.addEventListener("input", () => {
-    state.settings.contourWidth = clamp(Number(contourWidth.value) || 0, 0, 30);
-    saveState(); drawWheel();
-  });
-  contourColor.addEventListener("input", () => {
-    state.settings.contourColor = contourColor.value;
-    saveState(); drawWheel();
-  });
-  outerBorderWidth.addEventListener("input", () => {
-    state.settings.outerBorderWidth = clamp(Number(outerBorderWidth.value) || 0, 0, 40);
-    saveState(); drawWheel();
-  });
-  outerBorderColor.addEventListener("input", () => {
-    state.settings.outerBorderColor = outerBorderColor.value;
-    saveState(); drawWheel();
-  });
-  spinDurationMs.addEventListener("input", () => {
-    state.settings.spinDurationMs = clamp(Number(spinDurationMs.value) || 4200, 800, 20000);
-    saveState();
-  });
+  contourWidth.addEventListener("input", () => { state.settings.contourWidth = clamp(Number(contourWidth.value)||0,0,30); saveState(); drawWheel(); });
+  contourColor.addEventListener("input", () => { state.settings.contourColor = contourColor.value; saveState(); drawWheel(); });
+  outerBorderWidth.addEventListener("input", () => { state.settings.outerBorderWidth = clamp(Number(outerBorderWidth.value)||0,0,40); saveState(); drawWheel(); });
+  outerBorderColor.addEventListener("input", () => { state.settings.outerBorderColor = outerBorderColor.value; saveState(); drawWheel(); });
+  spinDurationMs.addEventListener("input", () => { state.settings.spinDurationMs = clamp(Number(spinDurationMs.value)||4200,800,20000); saveState(); });
   minSpins.addEventListener("input", () => {
-    state.settings.minSpins = clamp(Number(minSpins.value) || 1, 1, 80);
+    state.settings.minSpins = clamp(Number(minSpins.value)||1,1,80);
     state.settings.maxSpins = Math.max(state.settings.maxSpins, state.settings.minSpins);
     maxSpins.value = String(state.settings.maxSpins);
     saveState();
   });
   maxSpins.addEventListener("input", () => {
-    state.settings.maxSpins = clamp(Number(maxSpins.value) || 1, 1, 120);
+    state.settings.maxSpins = clamp(Number(maxSpins.value)||1,1,120);
     state.settings.minSpins = Math.min(state.settings.minSpins, state.settings.maxSpins);
     minSpins.value = String(state.settings.minSpins);
     saveState();
   });
 
+  // Text settings
+  fontFamily.addEventListener("change", () => { state.settings.fontFamily = fontFamily.value; saveState(); drawWheel(); });
+  fontStyle.addEventListener("change", () => { state.settings.fontStyle = fontStyle.value; saveState(); drawWheel(); });
+  nameFontSize.addEventListener("input", () => { state.settings.nameFontSize = Number(nameFontSize.value); saveState(); drawWheel(); });
+  tableFontSize.addEventListener("input", () => { state.settings.tableFontSize = Number(tableFontSize.value); saveState(); drawWheel(); });
+  nameFontWeight.addEventListener("change", () => { state.settings.nameFontWeight = Number(nameFontWeight.value); saveState(); drawWheel(); });
+  tableFontWeight.addEventListener("change", () => { state.settings.tableFontWeight = Number(tableFontWeight.value); saveState(); drawWheel(); });
+  textOrientation.addEventListener("change", () => { state.settings.textOrientation = textOrientation.value; saveState(); drawWheel(); });
+
   // Center settings
-  centerRadius.addEventListener("input", () => {
-    state.settings.centerRadius = clamp(Number(centerRadius.value) || 78, 20, 260);
-    saveState(); drawWheel();
-  });
-  centerBg.addEventListener("input", () => {
-    state.settings.centerBg = centerBg.value;
-    saveState(); drawWheel();
-  });
-  centerImageScale.addEventListener("input", () => {
-    state.settings.centerImageScale = clamp(Number(centerImageScale.value) || 1, 0.6, 2);
-    saveState(); drawWheel();
-  });
+  centerRadius.addEventListener("input", () => { state.settings.centerRadius = clamp(Number(centerRadius.value)||78,20,260); saveState(); drawWheel(); });
+  centerBg.addEventListener("input", () => { state.settings.centerBg = centerBg.value; saveState(); drawWheel(); });
+  centerImageScale.addEventListener("input", () => { state.settings.centerImageScale = clamp(Number(centerImageScale.value)||1,0.6,2); saveState(); drawWheel(); });
 
   centerImageInput.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
@@ -1462,16 +1486,8 @@
   bindUiColorInput(uiPointerOuter, "pointerOuter");
   bindUiColorInput(uiPointerInner, "pointerInner");
 
-  uiEffects.addEventListener("change", () => {
-    state.settings.ui.effects = uiEffects.value;
-    saveState();
-    applyUiTheme();
-  });
-  uiGrid.addEventListener("change", () => {
-    state.settings.ui.grid = uiGrid.value;
-    saveState();
-    applyUiTheme();
-  });
+  uiEffects.addEventListener("change", () => { state.settings.ui.effects = uiEffects.value; saveState(); applyUiTheme(); });
+  uiGrid.addEventListener("change", () => { state.settings.ui.grid = uiGrid.value; saveState(); applyUiTheme(); });
 
   resetUiBtn.addEventListener("click", () => {
     state.settings.ui = clone(defaultState.settings.ui);
@@ -1500,13 +1516,13 @@
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed.options)) throw new Error("options must be array");
 
-      // rebuild state with merge
       state = Object.assign(clone(defaultState), parsed);
       state.settings = Object.assign(clone(defaultState.settings), parsed.settings || {});
       state.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), parsed.settings?.themeStudio || {});
       state.settings.overlay = Object.assign(clone(defaultState.settings.overlay), parsed.settings?.overlay || {});
       state.settings.ui = Object.assign(clone(defaultState.settings.ui), parsed.settings?.ui || {});
 
+      frozenWheel = null;
       saveState();
 
       applyUiTheme();
@@ -1526,6 +1542,7 @@
   resetAllBtn.addEventListener("click", () => {
     if (!confirm("Reset to defaults?")) return;
     state = clone(defaultState);
+    frozenWheel = null;
     saveState();
     applyUiTheme();
     syncAllInputsFromState();
@@ -1540,6 +1557,7 @@
     if (!confirm("Clear storage (localStorage)?")) return;
     localStorage.removeItem(STORAGE_KEY);
     state = clone(defaultState);
+    frozenWheel = null;
     saveState();
     applyUiTheme();
     syncAllInputsFromState();
@@ -1557,19 +1575,17 @@
   // Keyboard shortcuts
   window.addEventListener("keydown", (e) => {
     if (e.key === " " && !e.repeat) {
-      // avoid scrolling page
       e.preventDefault();
       doSpin();
       return;
     }
 
     if (e.key === "Escape") {
-      if (document.body.classList.contains("modal-open")) return closeWinnerModal(true);
+      if (document.body.classList.contains("modal-open")) return closeWinnerModal();
       if (document.body.classList.contains("drawer-open")) return closeDrawer();
       return;
     }
 
-    // Don't steal focus when typing in inputs
     const tag = (document.activeElement?.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select") return;
 

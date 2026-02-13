@@ -43,13 +43,11 @@
   </header>
 
   <main class="stage">
+    <!-- NOTE: kotak/card belakang wheel sudah dihapus via CSS (no border/no bg) -->
     <div class="wheelShell">
       <div class="canvasWrap">
         <canvas id="wheelCanvas"></canvas>
-
-        <!-- confetti overlay -->
         <canvas id="confettiCanvas"></canvas>
-
         <div class="pointer" aria-hidden="true"><div class="pointerInner"></div></div>
       </div>
 
@@ -75,7 +73,6 @@
     <button id="fabFullscreenBtn" class="fabBtn" title="Fullscreen"><span class="fabIcon">⛶</span><span class="fabText">Full</span></button>
   </div>
 
-  <!-- Drawer + Backdrop -->
   <div id="drawerBackdrop" class="backdrop" aria-hidden="true"></div>
 
   <aside id="drawer" class="drawer" aria-hidden="true">
@@ -195,8 +192,7 @@ Tiket jalan-jalan"></textarea>
               <input id="soundFileInput" type="file" accept="audio/*" class="input"/>
             </label>
           </div>
-
-          <div class="smallHint">Kalau tidak upload audio, sistem pakai “clap/cheer” synth bawaan (WebAudio).</div>
+          <div class="smallHint">Kalau tidak upload audio, pakai “clap/cheer” synth bawaan.</div>
         </div>
 
         <div class="panelCard">
@@ -236,14 +232,61 @@ Tiket jalan-jalan"></textarea>
               </select>
             </label>
           </div>
-          <div class="smallHint">Default “Follow wheel” menghindari teks flip tiba-tiba.</div>
         </div>
       </section>
 
       <!-- THEME -->
       <section class="tabPanel" data-tab-panel="theme">
+        <!-- NEW: Background Studio -->
         <div class="panelCard">
-          <div class="panelTitle">Theme Studio</div>
+          <div class="panelTitle">Background Studio</div>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Background Mode</span>
+              <select id="bgMode" class="select">
+                <option value="solid">Solid</option>
+                <option value="gradient">Gradient</option>
+                <option value="glow">Gradient + Glow</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>BG Solid Color</span>
+              <input id="bgSolid" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>BG Gradient Top</span>
+              <input id="bgTop" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>BG Gradient Bottom</span>
+              <input id="bgBottom" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>Glow A</span>
+              <input id="bgGlowA" type="color"/>
+            </label>
+
+            <label class="field">
+              <span>Glow B</span>
+              <input id="bgGlowB" type="color"/>
+            </label>
+          </div>
+
+          <div class="panelRow">
+            <button id="applyBgBtn" class="btn primary">Apply Background</button>
+            <button id="resetBgBtn" class="btn ghost">Reset Background</button>
+          </div>
+
+          <div class="smallHint">Mode “Glow” akan aktifkan 2 radial glow di belakang, seperti aurora.</div>
+        </div>
+
+        <div class="panelCard">
+          <div class="panelTitle">Theme Studio (Slices)</div>
           <div class="grid2">
             <label class="field"><span>Color A</span><input id="themeA" type="color" /></label>
             <label class="field"><span>Color B</span><input id="themeB" type="color" /></label>

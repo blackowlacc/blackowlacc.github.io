@@ -1,32 +1,28 @@
 (() => {
-  const STORAGE_KEY = "black_owl_wheel_auto_prize_v2";
+  const STORAGE_KEY = "black_owl_wheel_auto_prize_v3_bgstudio";
   const $ = (id) => document.getElementById(id);
 
-  // Canvas
   const canvas = $("wheelCanvas");
   const ctx = canvas.getContext("2d");
 
   const confettiCanvas = $("confettiCanvas");
   const cctx = confettiCanvas.getContext("2d");
 
-  // Main controls
   const spinBtn = $("spinBtn");
   const winnerInline = $("winnerInline");
   const winnerInlineText = $("winnerInlineText");
 
-  // Header buttons
   const openDrawerBtn = $("openDrawerBtn");
   const fullscreenBtn = $("fullscreenBtn");
   const fabFullscreenBtn = $("fabFullscreenBtn");
 
-  // Drawer
   const drawer = $("drawer");
   const drawerBackdrop = $("drawerBackdrop");
   const drawerCloseBtn = $("drawerCloseBtn");
   const tabBtns = Array.from(document.querySelectorAll(".tabBtn"));
   const tabPanels = Array.from(document.querySelectorAll(".tabPanel"));
 
-  // List tab elements
+  // List tab
   const quickName = $("quickName");
   const quickTable = $("quickTable");
   const quickAddBtn = $("quickAddBtn");
@@ -64,7 +60,7 @@
   const maxSpins = $("maxSpins");
   const textOrientation = $("textOrientation");
 
-  // Theme tab
+  // Theme tab (slices)
   const themeA = $("themeA");
   const themeB = $("themeB");
   const themeC = $("themeC");
@@ -75,6 +71,16 @@
   const themeDarken = $("themeDarken");
   const applyThemeBtn = $("applyThemeBtn");
   const randomThemeBtn = $("randomThemeBtn");
+
+  // Theme tab (background studio) NEW
+  const bgMode = $("bgMode");
+  const bgSolid = $("bgSolid");
+  const bgTop = $("bgTop");
+  const bgBottom = $("bgBottom");
+  const bgGlowA = $("bgGlowA");
+  const bgGlowB = $("bgGlowB");
+  const applyBgBtn = $("applyBgBtn");
+  const resetBgBtn = $("resetBgBtn");
 
   // Export tab
   const exportBtn = $("exportBtn");
@@ -103,11 +109,13 @@
     : JSON.parse(JSON.stringify(obj));
 
   function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
   function normalizeAngle(rad){
     rad = rad % TWO_PI;
     if (rad < 0) rad += TWO_PI;
     return rad;
   }
+
   function safeColor(value, fallback){
     let v = (value || "").toString().trim();
     if (!v) return fallback;
@@ -116,10 +124,12 @@
     if (v.length !== 7) return fallback;
     return v;
   }
+
   function mixChannel(channel, amt){
     if (amt < 0) return Math.round(channel * (1 + amt));
     return Math.round(channel + (255 - channel) * amt);
   }
+
   function adjustHex(hex, amt){
     let h = (hex || "").trim();
     if (!h) return "#999999";
@@ -140,21 +150,25 @@
     const out = (1 << 24) + (r << 16) + (g << 8) + b;
     return "#" + out.toString(16).slice(1);
   }
+
   function hexToRgb(hex){
     hex = (hex || "#000000").replace("#","").trim();
     if (hex.length === 3) hex = hex.split("").map(c=>c+c).join("");
     const n = parseInt(hex, 16);
     return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
   }
+
   function rgbToHex({r,g,b}){
     const to = v => clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
     return "#" + to(r) + to(g) + to(b);
   }
+
   function mixHex(a, b, t){
     const A = hexToRgb(a), B = hexToRgb(b);
     const lerp = (x,y,t) => x + (y-x)*t;
     return rgbToHex({ r: lerp(A.r,B.r,t), g: lerp(A.g,B.g,t), b: lerp(A.b,B.b,t) });
   }
+
   function hslToHex(h, s, l){
     s/=100; l/=100;
     const k = n => (n + h/30) % 12;
@@ -174,7 +188,7 @@
     toast._t = setTimeout(()=>toastEl.classList.remove("show"), 2200);
   }
 
-  // ------------------ AUDIO (WebAudio synth + optional uploaded audio) ------------------
+  // ------------------ AUDIO ------------------
   let audioCtx = null;
   let uploadedAudioUrl = null;
 
@@ -196,28 +210,25 @@
     }
   }
 
-  // a simple "clap/cheer" synth (noise bursts + short tones)
   function playCheerSynth(){
-    const ctx = ensureAudioCtx();
-    const master = ctx.createGain();
+    const ctxA = ensureAudioCtx();
+    const master = ctxA.createGain();
     master.gain.value = clamp(Number(state.settings.soundVolume) || 0.7, 0, 1);
-    master.connect(ctx.destination);
+    master.connect(ctxA.destination);
 
-    const now = ctx.currentTime;
+    const now = ctxA.currentTime;
 
-    // noise buffer
     const dur = 0.25;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const buf = ctxA.createBuffer(1, ctxA.sampleRate * dur, ctxA.sampleRate);
     const data = buf.getChannelData(0);
     for (let i=0;i<data.length;i++){
-      // softer noise
       data[i] = (Math.random()*2-1) * (1 - i/data.length);
     }
 
     const burst = (t, amp) => {
-      const src = ctx.createBufferSource();
+      const src = ctxA.createBufferSource();
       src.buffer = buf;
-      const g = ctx.createGain();
+      const g = ctxA.createGain();
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(amp, t + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -227,16 +238,14 @@
       src.stop(t + dur);
     };
 
-    // series of claps
     burst(now + 0.00, 0.55);
     burst(now + 0.08, 0.50);
     burst(now + 0.16, 0.45);
     burst(now + 0.24, 0.38);
 
-    // short "cheer" tones
     const tone = (t, freq, length, amp) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
+      const o = ctxA.createOscillator();
+      const g = ctxA.createGain();
       o.type = "sine";
       o.frequency.setValueAtTime(freq, t);
       g.gain.setValueAtTime(0.0001, t);
@@ -245,15 +254,14 @@
       o.connect(g); g.connect(master);
       o.start(t); o.stop(t + length);
     };
-    tone(now + 0.02, 523.25, 0.18, 0.16); // C5
-    tone(now + 0.10, 659.25, 0.18, 0.14); // E5
-    tone(now + 0.18, 783.99, 0.22, 0.12); // G5
+
+    tone(now + 0.02, 523.25, 0.18, 0.16);
+    tone(now + 0.10, 659.25, 0.18, 0.14);
+    tone(now + 0.18, 783.99, 0.22, 0.12);
   }
 
   function playWinSound(){
     if (state.settings.soundEnabled !== "on") return;
-    // On first user gesture, AudioContext allowed.
-    // We call ensureAudioCtx in spin click implicitly.
     if (playUploadedAudio()) return;
     playCheerSynth();
   }
@@ -356,6 +364,24 @@
     confettiRAF = requestAnimationFrame(tick);
   }
 
+  // ------------------ BACKGROUND STUDIO APPLY ------------------
+  function rgbaFromHex(hex, alpha){
+    const {r,g,b} = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function applyBackgroundToDOM(){
+    const bg = state.settings.background;
+    document.body.dataset.bg = bg.mode;
+
+    const root = document.documentElement.style;
+    root.setProperty("--bg-solid", bg.solid);
+    root.setProperty("--bg-top", bg.top);
+    root.setProperty("--bg-bottom", bg.bottom);
+    root.setProperty("--bg-glow-a", rgbaFromHex(bg.glowA, bg.glowAAlpha));
+    root.setProperty("--bg-glow-b", rgbaFromHex(bg.glowB, bg.glowBAlpha));
+  }
+
   // ------------------ STATE ------------------
   const defaultState = {
     rotation: 0,
@@ -371,18 +397,15 @@
       { name: "Eka",  table: "S2", color1: "#b197fc", color2: "#7048e8", textColor: "#ffffff" },
     ],
     settings: {
-      // prizes
       prizeList: ["MOTOR", "HP", "TIKET JALAN-JALAN"],
-      prizeCursor: 0,           // next prize index
-      spinCount: 0,             // number of completed spins (for display)
-      prizeExhausted: "loop",   // loop | stop
+      prizeCursor: 0,
+      spinCount: 0,
+      prizeExhausted: "loop",
 
-      // celebration
       confettiEnabled: "on",
       soundEnabled: "on",
       soundVolume: 0.7,
 
-      // wheel rendering
       gradient: "on",
       removeAfterWin: "on",
       contourWidth: 2,
@@ -394,7 +417,6 @@
       maxSpins: 10,
       textOrientation: "wheel",
 
-      // theme studio
       themeStudio: {
         a: "#60a5fa",
         b: "#a78bfa",
@@ -404,6 +426,18 @@
         mode: "spectrum",
         lighten: 0.08,
         darken: -0.22,
+      },
+
+      // NEW: Background settings
+      background: {
+        mode: "glow",            // solid | gradient | glow
+        solid: "#0b1020",
+        top: "#070814",
+        bottom: "#040508",
+        glowA: "#60a5fa",
+        glowB: "#a78bfa",
+        glowAAlpha: 0.18,
+        glowBAlpha: 0.14,
       }
     }
   };
@@ -415,10 +449,12 @@
   function saveState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
+
   function scheduleSave(){
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveState, 180);
   }
+
   function loadState(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -430,15 +466,23 @@
 
       merged.settings = Object.assign(clone(defaultState.settings), parsed.settings || {});
       merged.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), parsed.settings?.themeStudio || {});
+      merged.settings.background = Object.assign(clone(defaultState.settings.background), parsed.settings?.background || {});
       merged.options = Array.isArray(parsed.options) ? parsed.options : clone(defaultState.options);
 
-      // normalize prizes
       if (!Array.isArray(merged.settings.prizeList)) merged.settings.prizeList = clone(defaultState.settings.prizeList);
       merged.settings.prizeCursor = clamp(Number(merged.settings.prizeCursor)||0, 0, merged.settings.prizeList.length);
       merged.settings.spinCount = clamp(Number(merged.settings.spinCount)||0, 0, 999999);
-
-      // normalize sound
       merged.settings.soundVolume = clamp(Number(merged.settings.soundVolume)||0.7, 0, 1);
+
+      // sanitize bg
+      merged.settings.background.mode = ["solid","gradient","glow"].includes(merged.settings.background.mode) ? merged.settings.background.mode : "glow";
+      merged.settings.background.solid = safeColor(merged.settings.background.solid, defaultState.settings.background.solid);
+      merged.settings.background.top = safeColor(merged.settings.background.top, defaultState.settings.background.top);
+      merged.settings.background.bottom = safeColor(merged.settings.background.bottom, defaultState.settings.background.bottom);
+      merged.settings.background.glowA = safeColor(merged.settings.background.glowA, defaultState.settings.background.glowA);
+      merged.settings.background.glowB = safeColor(merged.settings.background.glowB, defaultState.settings.background.glowB);
+      merged.settings.background.glowAAlpha = clamp(Number(merged.settings.background.glowAAlpha) || 0.18, 0, 0.5);
+      merged.settings.background.glowBAlpha = clamp(Number(merged.settings.background.glowBAlpha) || 0.14, 0, 0.5);
 
       return merged;
     }catch{
@@ -455,11 +499,13 @@
     drawerBackdrop.setAttribute("aria-hidden", "false");
     setActiveTab(tab);
   }
+
   function closeDrawer(){
     document.body.classList.remove("drawer-open");
     drawer.setAttribute("aria-hidden", "true");
     drawerBackdrop.setAttribute("aria-hidden", "true");
   }
+
   function setActiveTab(tab){
     tabBtns.forEach(btn => btn.classList.toggle("isActive", btn.dataset.tab === tab));
     tabPanels.forEach(p => p.classList.toggle("isActive", p.dataset.tabPanel === tab));
@@ -469,16 +515,15 @@
   function openWinnerModal(){
     if (!state.lastWinner) return;
     const w = state.lastWinner;
-
     winnerMain.textContent = `${(w.name||"-").toUpperCase()} - ${(w.table||"-").toUpperCase()}`;
     winnerPrize.textContent = (w.prize || "—").toString().toUpperCase();
-
     undoRemoveBtn.style.display = state.lastRemoved ? "" : "none";
 
     document.body.classList.add("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "false");
     winnerModal.setAttribute("aria-hidden", "false");
   }
+
   function closeWinnerModal(){
     document.body.classList.remove("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "true");
@@ -536,7 +581,6 @@
       const start = rotation + START_ANGLE_OFFSET + i*arc;
       const end = start + arc;
 
-      // slice fill
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -558,7 +602,6 @@
       }
       ctx.restore();
 
-      // contour
       const cw = clamp(Number(state.settings.contourWidth) || 0, 0, 30);
       if (cw > 0){
         ctx.save();
@@ -572,7 +615,6 @@
         ctx.restore();
       }
 
-      // text 2 lines
       const mid = start + arc/2;
       const name = (o.name ?? "").toString();
       const table = (o.table ?? "").toString();
@@ -600,7 +642,6 @@
 
       let nameY = -Math.max(8, nameSize * 0.55);
       let tableY = Math.max(10, tableSize * 0.85);
-
       if (flip) { nameY = -nameY; tableY = -tableY; }
 
       ctx.font = `900 ${nameSize}px system-ui`;
@@ -612,7 +653,6 @@
       ctx.restore();
     }
 
-    // outer border
     const obw = clamp(Number(state.settings.outerBorderWidth) || 0, 0, 40);
     if (obw > 0) {
       ctx.save();
@@ -624,7 +664,6 @@
       ctx.restore();
     }
 
-    // center disc
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, 76, 0, TWO_PI);
@@ -824,7 +863,6 @@
     if (state.options.length < 2) return toast("Minimal 2 opsi untuk spin.", "error");
     if (document.body.classList.contains("modal-open")) closeWinnerModal();
 
-    // ensure audio allowed after click
     if (state.settings.soundEnabled === "on") ensureAudioCtx();
 
     state.isSpinning = true;
@@ -870,15 +908,9 @@
         const finalIndex = getSelectedIndex(state.rotation, preOptions.length);
         const winnerItem = preOptions[finalIndex];
 
-        frozenWheel = {
-          rotation: state.rotation,
-          options: clone(preOptions),
-          winnerIndex: finalIndex,
-        };
+        frozenWheel = { rotation: state.rotation, options: clone(preOptions), winnerIndex: finalIndex };
 
-        // prize = sequential by spin order
         const prize = getNextPrizeAndAdvance();
-
         state.settings.spinCount = (Number(state.settings.spinCount) || 0) + 1;
 
         state.lastWinner = {
@@ -900,10 +932,8 @@
         syncPrizePills();
         drawWheel();
 
-        // celebration
         spawnConfetti();
         playWinSound();
-
         openWinnerModal();
       }
     };
@@ -920,7 +950,7 @@
     }
   }
 
-  // ------------------ Theme apply ------------------
+  // ------------------ Theme apply (Slices) ------------------
   function getThemeBaseColor(i, n, mode, a, b, c, stops){
     if (mode === "mono") return a;
     if (mode === "alternate") {
@@ -937,6 +967,7 @@
     }
     return mixHex(a, b, t);
   }
+
   function applyThemeToAll(){
     const ts = state.settings.themeStudio;
     const a = ts.a, b = ts.b, c = ts.c;
@@ -958,6 +989,7 @@
     drawWheel();
     toast("Theme applied to all slices.", "success");
   }
+
   function randomizeTheme(){
     const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
     state.settings.themeStudio.a = randHex();
@@ -967,6 +999,7 @@
     saveState();
     toast("Random theme generated.", "info");
   }
+
   function syncThemeInputs(){
     const ts = state.settings.themeStudio;
     themeA.value = safeColor(ts.a, "#60a5fa");
@@ -978,6 +1011,17 @@
     themeLighten.value = String(ts.lighten);
     themeDarken.value = String(ts.darken);
     themeC.disabled = Number(themeStops.value) !== 3;
+  }
+
+  // Background Studio sync
+  function syncBackgroundInputs(){
+    const bg = state.settings.background;
+    bgMode.value = bg.mode;
+    bgSolid.value = safeColor(bg.solid, "#0b1020");
+    bgTop.value = safeColor(bg.top, "#070814");
+    bgBottom.value = safeColor(bg.bottom, "#040508");
+    bgGlowA.value = safeColor(bg.glowA, "#60a5fa");
+    bgGlowB.value = safeColor(bg.glowB, "#a78bfa");
   }
 
   function syncAllInputs(){
@@ -1000,9 +1044,13 @@
     textOrientation.value = state.settings.textOrientation || "wheel";
 
     syncThemeInputs();
+    syncBackgroundInputs();
+
     syncWinnerInline();
     syncCount();
     syncPrizePills();
+
+    applyBackgroundToDOM(); // 🔥 ensure body bg applied on load
   }
 
   // ------------------ Events ------------------
@@ -1049,13 +1097,7 @@
     const table = (quickTable.value || "").trim();
     if (!name) return toast("Nama wajib diisi.", "error");
 
-    state.options.push({
-      name,
-      table,
-      color1:"#888888",
-      color2:"#555555",
-      textColor:"#ffffff",
-    });
+    state.options.push({ name, table, color1:"#888888", color2:"#555555", textColor:"#ffffff" });
 
     quickName.value = "";
     quickTable.value = "";
@@ -1193,7 +1235,7 @@
   });
   textOrientation.addEventListener("change", () => { state.settings.textOrientation = textOrientation.value; saveState(); drawWheel(); });
 
-  // Theme studio bindings
+  // Theme studio (slices)
   [themeA, themeB, themeC, themeText].forEach(inp => inp.addEventListener("input", () => {
     state.settings.themeStudio.a = themeA.value;
     state.settings.themeStudio.b = themeB.value;
@@ -1211,6 +1253,38 @@
   themeDarken.addEventListener("input", () => { state.settings.themeStudio.darken = Number(themeDarken.value); saveState(); });
   applyThemeBtn.addEventListener("click", applyThemeToAll);
   randomThemeBtn.addEventListener("click", randomizeTheme);
+
+  // Background studio bindings
+  bgMode.addEventListener("change", () => {
+    state.settings.background.mode = bgMode.value;
+    saveState();
+    applyBackgroundToDOM();
+  });
+
+  [bgSolid, bgTop, bgBottom, bgGlowA, bgGlowB].forEach(inp => inp.addEventListener("input", () => {
+    state.settings.background.solid = bgSolid.value;
+    state.settings.background.top = bgTop.value;
+    state.settings.background.bottom = bgBottom.value;
+    state.settings.background.glowA = bgGlowA.value;
+    state.settings.background.glowB = bgGlowB.value;
+    // apply live
+    scheduleSave();
+    applyBackgroundToDOM();
+  }));
+
+  applyBgBtn.addEventListener("click", () => {
+    applyBackgroundToDOM();
+    saveState();
+    toast("Background applied.", "success");
+  });
+
+  resetBgBtn.addEventListener("click", () => {
+    state.settings.background = clone(defaultState.settings.background);
+    saveState();
+    syncBackgroundInputs();
+    applyBackgroundToDOM();
+    toast("Background reset.", "info");
+  });
 
   // Export/Import
   exportBtn.addEventListener("click", async () => {
@@ -1234,6 +1308,7 @@
       state = Object.assign(clone(defaultState), parsed);
       state.settings = Object.assign(clone(defaultState.settings), parsed.settings || {});
       state.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), parsed.settings?.themeStudio || {});
+      state.settings.background = Object.assign(clone(defaultState.settings.background), parsed.settings?.background || {});
       state.options = Array.isArray(state.options) ? state.options : clone(defaultState.options);
 
       if (!Array.isArray(state.settings.prizeList)) state.settings.prizeList = clone(defaultState.settings.prizeList);
@@ -1248,6 +1323,7 @@
       renderItems();
       drawWheel();
       syncWinnerInline();
+      applyBackgroundToDOM();
 
       toast("Import success.", "success");
     }catch(err){
@@ -1278,11 +1354,10 @@
     toast("Storage cleared.", "info");
   });
 
-  // Fullscreen
   fullscreenBtn.addEventListener("click", toggleFullscreen);
   fabFullscreenBtn.addEventListener("click", toggleFullscreen);
 
-  // Shortcuts (SAFE: disable when typing or inside drawer)
+  // Shortcuts (disable when typing / inside drawer)
   window.addEventListener("keydown", (e) => {
     const t = e.target;
     const isTyping =
@@ -1308,6 +1383,7 @@
   setActiveTab(state.activeTab || "list");
   renderItems();
   syncWinnerInline();
+  applyBackgroundToDOM();
   drawWheel();
   resizeConfetti();
 

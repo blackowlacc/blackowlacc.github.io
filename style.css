@@ -1,6 +1,4 @@
 :root{
-  --bg0:#040508;
-  --bg1:#070814;
   --text:#eaf0ff;
   --muted:#aab3d7;
   --line: rgba(255,255,255,.10);
@@ -22,19 +20,42 @@
 
   --shadow: 0 16px 60px rgba(0,0,0,.55);
   --ring: 0 0 0 4px rgba(96,165,250,.28);
+
+  /* Background Studio variables (will be updated by JS) */
+  --bg-mode: glow; /* solid | gradient | glow */
+  --bg-solid: #0b1020;
+  --bg-top: #070814;
+  --bg-bottom: #040508;
+  --bg-glow-a: rgba(96,165,250,.18);
+  --bg-glow-b: rgba(167,139,250,.14);
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
 body{
   margin:0;
   color:var(--text);
   font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background:
-    radial-gradient(900px 650px at 15% 0%, rgba(96,165,250,.16), transparent 58%),
-    radial-gradient(900px 650px at 90% 12%, rgba(167,139,250,.12), transparent 55%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
+
+  /* Default (will be overridden by body[data-bg=...] rules below) */
+  background: var(--bg-solid);
+
   overflow-x:hidden;
+}
+
+/* Background modes */
+body[data-bg="solid"]{
+  background: var(--bg-solid);
+}
+body[data-bg="gradient"]{
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+body[data-bg="glow"]{
+  background:
+    radial-gradient(900px 650px at 15% 0%, var(--bg-glow-a), transparent 58%),
+    radial-gradient(900px 650px at 90% 12%, var(--bg-glow-b), transparent 55%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
 }
 
 /* Header */
@@ -89,25 +110,27 @@ body{
   min-height: calc(100dvh - 70px);
   gap: 12px;
 }
+
+/* ✅ Removed “kotak belakang wheel”: no background, no border, no card shadow */
 .wheelShell{
   width: min(880px, 100%);
-  border-radius: 22px;
-  border: 1px solid var(--line);
-  background: rgba(0,0,0,.14);
-  box-shadow: var(--shadow);
-  padding: 14px;
-  position: relative;
-  overflow:hidden;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
+
+/* wheel canvas container stays pretty */
 .canvasWrap{
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 18px;
+  border-radius: 22px;
   border: 1px solid rgba(255,255,255,.10);
   background: radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.10), rgba(0,0,0,.05));
   overflow: hidden;
   z-index: 1;
+  box-shadow: 0 26px 80px rgba(0,0,0,.40);
 }
 #wheelCanvas, #confettiCanvas{
   width:100%;
@@ -280,8 +303,6 @@ code{
 body.drawer-open .backdrop{ opacity: 1; pointer-events: auto; }
 body.drawer-open .drawer{ transform: translateX(0); pointer-events: auto; }
 
-/* prevent wheel catching clicks when drawer open */
-body.drawer-open .wheelShell,
 body.drawer-open .canvasWrap,
 body.drawer-open #wheelCanvas{
   pointer-events: none;

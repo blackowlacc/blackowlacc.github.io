@@ -1,10 +1,13 @@
 (() => {
-  const STORAGE_KEY = "black_owl_wheel_v3_1";
+  const STORAGE_KEY = "black_owl_wheel_auto_prize_v2";
   const $ = (id) => document.getElementById(id);
 
   // Canvas
   const canvas = $("wheelCanvas");
   const ctx = canvas.getContext("2d");
+
+  const confettiCanvas = $("confettiCanvas");
+  const cctx = confettiCanvas.getContext("2d");
 
   // Main controls
   const spinBtn = $("spinBtn");
@@ -15,9 +18,6 @@
   const openDrawerBtn = $("openDrawerBtn");
   const fullscreenBtn = $("fullscreenBtn");
   const fabFullscreenBtn = $("fabFullscreenBtn");
-
-  // FAB
-  const fabStack = document.querySelector(".fabStack");
 
   // Drawer
   const drawer = $("drawer");
@@ -40,40 +40,17 @@
   const bulkAppendBtn = $("bulkAppendBtn");
   const itemsList = $("itemsList");
 
-  // Theme tab
-  const themeA = $("themeA");
-  const themeB = $("themeB");
-  const themeC = $("themeC");
-  const themeText = $("themeText");
-  const themeMode = $("themeMode");
-  const themeStops = $("themeStops");
-  const themeLighten = $("themeLighten");
-  const themeDarken = $("themeDarken");
-  const applyThemeBtn = $("applyThemeBtn");
-  const randomThemeBtn = $("randomThemeBtn");
-  const palettePreview = $("palettePreview");
-  const paletteLabel = $("paletteLabel");
+  // Prize + celebration
+  const prizeListInput = $("prizeListInput");
+  const prizeExhausted = $("prizeExhausted");
+  const resetPrizeCursorBtn = $("resetPrizeCursorBtn");
+  const prizeNextPill = $("prizeNextPill");
+  const spinCountPill = $("spinCountPill");
 
-  const overlayEnabled = $("overlayEnabled");
-  const overlayAlpha = $("overlayAlpha");
-  const overlayA = $("overlayA");
-  const overlayB = $("overlayB");
-
-  // UI colors advanced
-  const uiBg0 = $("uiBg0");
-  const uiBg1 = $("uiBg1");
-  const uiAccentA = $("uiAccentA");
-  const uiAccentB = $("uiAccentB");
-  const uiText = $("uiText");
-  const uiMuted = $("uiMuted");
-  const uiLine = $("uiLine");
-  const uiDanger = $("uiDanger");
-  const uiBrandGold = $("uiBrandGold");
-  const uiPointerOuter = $("uiPointerOuter");
-  const uiPointerInner = $("uiPointerInner");
-  const uiEffects = $("uiEffects");
-  const uiGrid = $("uiGrid");
-  const resetUiBtn = $("resetUiBtn");
+  const confettiEnabled = $("confettiEnabled");
+  const soundEnabled = $("soundEnabled");
+  const soundVolume = $("soundVolume");
+  const soundFileInput = $("soundFileInput");
 
   // Wheel tab
   const gradientMode = $("gradientMode");
@@ -85,23 +62,19 @@
   const spinDurationMs = $("spinDurationMs");
   const minSpins = $("minSpins");
   const maxSpins = $("maxSpins");
-
-  // Text settings
-  const fontFamily = $("fontFamily");
-  const fontStyle = $("fontStyle");
-  const nameFontSize = $("nameFontSize");
-  const tableFontSize = $("tableFontSize");
-  const nameFontWeight = $("nameFontWeight");
-  const tableFontWeight = $("tableFontWeight");
   const textOrientation = $("textOrientation");
 
-  // Center tab
-  const centerImageInput = $("centerImageInput");
-  const removeCenterImageBtn = $("removeCenterImageBtn");
-  const centerRadius = $("centerRadius");
-  const centerBg = $("centerBg");
-  const centerImageScale = $("centerImageScale");
-  const centerPreview = $("centerPreview");
+  // Theme tab
+  const themeA = $("themeA");
+  const themeB = $("themeB");
+  const themeC = $("themeC");
+  const themeText = $("themeText");
+  const themeMode = $("themeMode");
+  const themeStops = $("themeStops");
+  const themeLighten = $("themeLighten");
+  const themeDarken = $("themeDarken");
+  const applyThemeBtn = $("applyThemeBtn");
+  const randomThemeBtn = $("randomThemeBtn");
 
   // Export tab
   const exportBtn = $("exportBtn");
@@ -113,9 +86,9 @@
   // Winner modal
   const winnerModalBackdrop = $("winnerModalBackdrop");
   const winnerModal = $("winnerModal");
+  const winnerMain = $("winnerMain");
+  const winnerPrize = $("winnerPrize");
   const winnerCloseBtn = $("winnerCloseBtn");
-  const winnerName = $("winnerName");
-  const winnerTable = $("winnerTable");
   const spinAgainBtn = $("spinAgainBtn");
   const undoRemoveBtn = $("undoRemoveBtn");
 
@@ -135,22 +108,14 @@
     if (rad < 0) rad += TWO_PI;
     return rad;
   }
-
-  function hexToRgb(hex){
-    hex = (hex || "#000000").replace("#","").trim();
-    if (hex.length === 3) hex = hex.split("").map(c=>c+c).join("");
-    const n = parseInt(hex, 16);
-    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  function safeColor(value, fallback){
+    let v = (value || "").toString().trim();
+    if (!v) return fallback;
+    if (!v.startsWith("#")) v = "#" + v;
+    if (v.length === 4) v = "#" + v.slice(1).split("").map(ch => ch + ch).join("");
+    if (v.length !== 7) return fallback;
+    return v;
   }
-  function rgbToHex({r,g,b}){
-    const to = v => clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
-    return "#" + to(r) + to(g) + to(b);
-  }
-  function hexToRgba(hex, a){
-    const {r,g,b} = hexToRgb(hex);
-    return `rgba(${r},${g},${b},${a})`;
-  }
-
   function mixChannel(channel, amt){
     if (amt < 0) return Math.round(channel * (1 + amt));
     return Math.round(channel + (255 - channel) * amt);
@@ -175,22 +140,21 @@
     const out = (1 << 24) + (r << 16) + (g << 8) + b;
     return "#" + out.toString(16).slice(1);
   }
-
+  function hexToRgb(hex){
+    hex = (hex || "#000000").replace("#","").trim();
+    if (hex.length === 3) hex = hex.split("").map(c=>c+c).join("");
+    const n = parseInt(hex, 16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  function rgbToHex({r,g,b}){
+    const to = v => clamp(Math.round(v),0,255).toString(16).padStart(2,"0");
+    return "#" + to(r) + to(g) + to(b);
+  }
   function mixHex(a, b, t){
     const A = hexToRgb(a), B = hexToRgb(b);
     const lerp = (x,y,t) => x + (y-x)*t;
     return rgbToHex({ r: lerp(A.r,B.r,t), g: lerp(A.g,B.g,t), b: lerp(A.b,B.b,t) });
   }
-
-  function safeColor(value, fallback){
-    let v = (value || "").toString().trim();
-    if (!v) return fallback;
-    if (!v.startsWith("#")) v = "#" + v;
-    if (v.length === 4) v = "#" + v.slice(1).split("").map(ch => ch + ch).join("");
-    if (v.length !== 7) return fallback;
-    return v;
-  }
-
   function hslToHex(h, s, l){
     s/=100; l/=100;
     const k = n => (n + h/30) % 12;
@@ -202,24 +166,225 @@
     return "#" + [r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("");
   }
 
+  function toast(msg, variant="info"){
+    toastEl.textContent = msg;
+    toastEl.dataset.variant = variant;
+    toastEl.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>toastEl.classList.remove("show"), 2200);
+  }
+
+  // ------------------ AUDIO (WebAudio synth + optional uploaded audio) ------------------
+  let audioCtx = null;
+  let uploadedAudioUrl = null;
+
+  function ensureAudioCtx(){
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+    return audioCtx;
+  }
+
+  function playUploadedAudio(){
+    if (!uploadedAudioUrl) return false;
+    try{
+      const audio = new Audio(uploadedAudioUrl);
+      audio.volume = clamp(Number(state.settings.soundVolume) || 0.7, 0, 1);
+      audio.play().catch(()=>{});
+      return true;
+    }catch{
+      return false;
+    }
+  }
+
+  // a simple "clap/cheer" synth (noise bursts + short tones)
+  function playCheerSynth(){
+    const ctx = ensureAudioCtx();
+    const master = ctx.createGain();
+    master.gain.value = clamp(Number(state.settings.soundVolume) || 0.7, 0, 1);
+    master.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    // noise buffer
+    const dur = 0.25;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<data.length;i++){
+      // softer noise
+      data[i] = (Math.random()*2-1) * (1 - i/data.length);
+    }
+
+    const burst = (t, amp) => {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(amp, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(g);
+      g.connect(master);
+      src.start(t);
+      src.stop(t + dur);
+    };
+
+    // series of claps
+    burst(now + 0.00, 0.55);
+    burst(now + 0.08, 0.50);
+    burst(now + 0.16, 0.45);
+    burst(now + 0.24, 0.38);
+
+    // short "cheer" tones
+    const tone = (t, freq, length, amp) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(amp, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + length);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + length);
+    };
+    tone(now + 0.02, 523.25, 0.18, 0.16); // C5
+    tone(now + 0.10, 659.25, 0.18, 0.14); // E5
+    tone(now + 0.18, 783.99, 0.22, 0.12); // G5
+  }
+
+  function playWinSound(){
+    if (state.settings.soundEnabled !== "on") return;
+    // On first user gesture, AudioContext allowed.
+    // We call ensureAudioCtx in spin click implicitly.
+    if (playUploadedAudio()) return;
+    playCheerSynth();
+  }
+
+  // ------------------ CONFETTI ------------------
+  let confetti = [];
+  let confettiRAF = null;
+
+  function resizeConfetti(){
+    const rect = confettiCanvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    confettiCanvas.width = Math.floor(rect.width * dpr);
+    confettiCanvas.height = Math.floor(rect.height * dpr);
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function spawnConfetti(){
+    if (state.settings.confettiEnabled !== "on") return;
+    resizeConfetti();
+
+    const rect = confettiCanvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+
+    confetti = [];
+    const count = 220;
+
+    const palette = [
+      "#ff6b6b","#ffd43b","#69db7c","#74c0fc","#b197fc",
+      "#ffa94d","#22c55e","#60a5fa","#a78bfa","#e599f7"
+    ];
+
+    for (let i=0;i<count;i++){
+      const size = 6 + Math.random()*10;
+      confetti.push({
+        x: w * 0.5 + (Math.random()*120 - 60),
+        y: h * 0.15 + (Math.random()*20),
+        vx: (Math.random()*2 - 1) * (2 + Math.random()*3),
+        vy: 1 + Math.random()*3,
+        rot: Math.random()*Math.PI,
+        vr: (Math.random()*2 - 1) * 0.18,
+        size,
+        color: palette[Math.floor(Math.random()*palette.length)],
+        life: 0,
+        ttl: 120 + Math.random()*80,
+        shape: Math.random() < 0.7 ? "rect" : "tri"
+      });
+    }
+
+    const gravity = 0.07;
+    const drag = 0.995;
+
+    const tick = () => {
+      const rect2 = confettiCanvas.getBoundingClientRect();
+      const W = rect2.width, H = rect2.height;
+
+      cctx.clearRect(0,0,W,H);
+
+      let alive = 0;
+      for (const p of confetti){
+        p.life++;
+        if (p.life > p.ttl) continue;
+        alive++;
+
+        p.vy += gravity;
+        p.vx *= drag;
+        p.vy *= drag;
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+
+        cctx.save();
+        cctx.translate(p.x, p.y);
+        cctx.rotate(p.rot);
+        cctx.fillStyle = p.color;
+        cctx.globalAlpha = Math.max(0, 1 - (p.life / p.ttl));
+
+        if (p.shape === "rect") {
+          cctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+        } else {
+          cctx.beginPath();
+          cctx.moveTo(0, -p.size/2);
+          cctx.lineTo(p.size/2, p.size/2);
+          cctx.lineTo(-p.size/2, p.size/2);
+          cctx.closePath();
+          cctx.fill();
+        }
+        cctx.restore();
+      }
+
+      if (alive > 0){
+        confettiRAF = requestAnimationFrame(tick);
+      } else {
+        cctx.clearRect(0,0,W,H);
+        confettiRAF = null;
+      }
+    };
+
+    if (confettiRAF) cancelAnimationFrame(confettiRAF);
+    confettiRAF = requestAnimationFrame(tick);
+  }
+
+  // ------------------ STATE ------------------
   const defaultState = {
     rotation: 0,
     isSpinning: false,
     activeTab: "list",
     lastWinner: null,
-    lastRemoved: null, // { item, index }
-    centerImageDataUrl: null,
+    lastRemoved: null,
     options: [
+      { name: "Mr James", table: "T2", color1: "#74c0fc", color2: "#1c7ed6", textColor: "#ffffff" },
       { name: "Budi", table: "S1", color1: "#ff6b6b", color2: "#c92a2a", textColor: "#ffffff" },
       { name: "Citra", table: "V1", color1: "#ffd43b", color2: "#e67700", textColor: "#111111" },
       { name: "Dewi", table: "T1", color1: "#69db7c", color2: "#2f9e44", textColor: "#111111" },
-      { name: "Eka",  table: "S2", color1: "#74c0fc", color2: "#1c7ed6", textColor: "#ffffff" },
-      { name: "Fajar",table: "V2", color1: "#b197fc", color2: "#7048e8", textColor: "#ffffff" },
+      { name: "Eka",  table: "S2", color1: "#b197fc", color2: "#7048e8", textColor: "#ffffff" },
     ],
     settings: {
+      // prizes
+      prizeList: ["MOTOR", "HP", "TIKET JALAN-JALAN"],
+      prizeCursor: 0,           // next prize index
+      spinCount: 0,             // number of completed spins (for display)
+      prizeExhausted: "loop",   // loop | stop
+
+      // celebration
+      confettiEnabled: "on",
+      soundEnabled: "on",
+      soundVolume: 0.7,
+
+      // wheel rendering
       gradient: "on",
       removeAfterWin: "on",
-
       contourWidth: 2,
       contourColor: "#0b1020",
       outerBorderWidth: 6,
@@ -227,80 +392,33 @@
       spinDurationMs: 4200,
       minSpins: 6,
       maxSpins: 10,
+      textOrientation: "wheel",
 
-      // text settings
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      fontStyle: "normal",
-      nameFontSize: 16,
-      tableFontSize: 13,
-      nameFontWeight: 900,
-      tableFontWeight: 700,
-      textOrientation: "wheel", // wheel | upright
-
-      centerRadius: 78,
-      centerBg: "#0f1730",
-      centerImageScale: 1.0,
-
+      // theme studio
       themeStudio: {
         a: "#60a5fa",
         b: "#a78bfa",
         c: "#22c55e",
-        stops: 2, // 2 or 3
+        stops: 2,
         text: "#ffffff",
-        mode: "spectrum", // spectrum | alternate | mono
+        mode: "spectrum",
         lighten: 0.08,
         darken: -0.22,
-      },
-      overlay: {
-        enabled: "off",
-        alpha: 0.18,
-        a: "#22c55e",
-        b: "#3b82f6",
-      },
-      ui: {
-        bg0: "#070a14",
-        bg1: "#0b1022",
-        accentA: "#60a5fa",
-        accentB: "#a78bfa",
-        text: "#eaf0ff",
-        muted: "#aab3d7",
-        line: "#ffffff",
-        danger: "#ff6b6b",
-        brandGold: "#c8a85a",
-        pointerOuter: "#ffffff",
-        pointerInner: "#60a5fa",
-        effects: "on",
-        grid: "on",
       }
     }
   };
 
   let state = loadState();
-  let centerImage = null;
   let saveTimer = null;
-  let toastTimer = null;
-
-  // freeze wheel render (so winner slice stays visible behind modal even after auto-remove)
   let frozenWheel = null;
-
-  function toast(msg, variant="info"){
-    if (!toastEl) return;
-    toastEl.textContent = msg;
-    toastEl.dataset.variant = variant;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 2200);
-  }
-
-  function scheduleSave(){
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveState, 180);
-  }
 
   function saveState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
-
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveState, 180);
+  }
   function loadState(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -311,20 +429,16 @@
       Object.assign(merged, parsed);
 
       merged.settings = Object.assign(clone(defaultState.settings), parsed.settings || {});
-      merged.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), (parsed.settings?.themeStudio)||{});
-      merged.settings.overlay = Object.assign(clone(defaultState.settings.overlay), (parsed.settings?.overlay)||{});
-      merged.settings.ui = Object.assign(clone(defaultState.settings.ui), (parsed.settings?.ui)||{});
+      merged.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), parsed.settings?.themeStudio || {});
       merged.options = Array.isArray(parsed.options) ? parsed.options : clone(defaultState.options);
 
-      // ensure new fields exist
-      merged.settings.themeStudio.c = merged.settings.themeStudio.c || defaultState.settings.themeStudio.c;
-      merged.settings.themeStudio.stops = Number(merged.settings.themeStudio.stops || defaultState.settings.themeStudio.stops);
+      // normalize prizes
+      if (!Array.isArray(merged.settings.prizeList)) merged.settings.prizeList = clone(defaultState.settings.prizeList);
+      merged.settings.prizeCursor = clamp(Number(merged.settings.prizeCursor)||0, 0, merged.settings.prizeList.length);
+      merged.settings.spinCount = clamp(Number(merged.settings.spinCount)||0, 0, 999999);
 
-      merged.settings.nameFontSize = Number(merged.settings.nameFontSize || defaultState.settings.nameFontSize);
-      merged.settings.tableFontSize = Number(merged.settings.tableFontSize || defaultState.settings.tableFontSize);
-      merged.settings.nameFontWeight = Number(merged.settings.nameFontWeight || defaultState.settings.nameFontWeight);
-      merged.settings.tableFontWeight = Number(merged.settings.tableFontWeight || defaultState.settings.tableFontWeight);
-      merged.settings.textOrientation = merged.settings.textOrientation || defaultState.settings.textOrientation;
+      // normalize sound
+      merged.settings.soundVolume = clamp(Number(merged.settings.soundVolume)||0.7, 0, 1);
 
       return merged;
     }catch{
@@ -332,38 +446,7 @@
     }
   }
 
-  function applyUiTheme(){
-    const ui = state.settings.ui;
-
-    document.documentElement.style.setProperty("--bg0", ui.bg0);
-    document.documentElement.style.setProperty("--bg1", ui.bg1);
-
-    document.documentElement.style.setProperty("--text", ui.text);
-    document.documentElement.style.setProperty("--muted", ui.muted);
-    document.documentElement.style.setProperty("--line", hexToRgba(ui.line, 0.10));
-
-    document.documentElement.style.setProperty("--accentA", ui.accentA);
-    document.documentElement.style.setProperty("--accentB", ui.accentB);
-
-    document.documentElement.style.setProperty("--accentA_glow", hexToRgba(ui.accentA, 0.22));
-    document.documentElement.style.setProperty("--accentB_glow", hexToRgba(ui.accentB, 0.18));
-    document.documentElement.style.setProperty("--accentA_btn1", hexToRgba(ui.accentA, 0.45));
-    document.documentElement.style.setProperty("--accentA_btn2", hexToRgba(ui.accentA, 0.20));
-    document.documentElement.style.setProperty("--accentA_border", hexToRgba(ui.accentA, 0.55));
-    document.documentElement.style.setProperty("--accentA_shadow", hexToRgba(ui.accentA, 0.14));
-
-    document.documentElement.style.setProperty("--danger", ui.danger);
-    document.documentElement.style.setProperty("--danger_border", hexToRgba(ui.danger, 0.55));
-
-    document.documentElement.style.setProperty("--brandGold", ui.brandGold);
-    document.documentElement.style.setProperty("--pointerOuter", ui.pointerOuter);
-    document.documentElement.style.setProperty("--pointerInner", ui.pointerInner);
-
-    document.body.classList.toggle("no-effects", ui.effects === "off");
-    document.body.classList.toggle("no-grid", ui.grid === "off");
-  }
-
-  // ---------- Drawer ----------
+  // ------------------ Drawer ------------------
   function openDrawer(tab = state.activeTab || "list"){
     state.activeTab = tab;
     saveState();
@@ -372,60 +455,47 @@
     drawerBackdrop.setAttribute("aria-hidden", "false");
     setActiveTab(tab);
   }
-
   function closeDrawer(){
     document.body.classList.remove("drawer-open");
     drawer.setAttribute("aria-hidden", "true");
     drawerBackdrop.setAttribute("aria-hidden", "true");
   }
-
   function setActiveTab(tab){
     tabBtns.forEach(btn => btn.classList.toggle("isActive", btn.dataset.tab === tab));
     tabPanels.forEach(p => p.classList.toggle("isActive", p.dataset.tabPanel === tab));
   }
 
-  // ---------- Winner Modal ----------
+  // ------------------ Winner modal ------------------
   function openWinnerModal(){
     if (!state.lastWinner) return;
-
     const w = state.lastWinner;
-    winnerName.textContent = w.name || "-";
-    winnerTable.textContent = w.table ? `Table: ${w.table}` : "-";
 
-    const a = w.color1 || "#60a5fa";
-    const b = w.color2 || adjustHex(a, -0.22);
-    winnerModal.style.background =
-      `radial-gradient(700px 300px at 20% 0%, ${hexToRgba(a, 0.18)}, transparent 60%),
-       radial-gradient(700px 300px at 90% 10%, ${hexToRgba(b, 0.14)}, transparent 60%),
-       linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.24))`;
+    winnerMain.textContent = `${(w.name||"-").toUpperCase()} - ${(w.table||"-").toUpperCase()}`;
+    winnerPrize.textContent = (w.prize || "—").toString().toUpperCase();
 
-    // show undo only if we removed someone
     undoRemoveBtn.style.display = state.lastRemoved ? "" : "none";
 
     document.body.classList.add("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "false");
     winnerModal.setAttribute("aria-hidden", "false");
   }
-
   function closeWinnerModal(){
     document.body.classList.remove("modal-open");
     winnerModalBackdrop.setAttribute("aria-hidden", "true");
     winnerModal.setAttribute("aria-hidden", "true");
-
-    // unfreeze wheel now that popup is closed
     frozenWheel = null;
     drawWheel();
   }
 
-  // ---------- canvas ----------
-  function resizeCanvas(){
-    const rect = canvas.getBoundingClientRect();
+  // ------------------ Canvas draw ------------------
+  function resizeCanvasLike(elCanvas, context){
+    const rect = elCanvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const w = Math.max(10, Math.floor(rect.width));
     const h = Math.max(10, Math.floor(rect.height));
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    elCanvas.width = Math.floor(w * dpr);
+    elCanvas.height = Math.floor(h * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { w, h };
   }
 
@@ -437,55 +507,8 @@
     return clamp(Math.floor(rel / arc), 0, n - 1);
   }
 
-  function drawCenter(cx, cy){
-    const r = clamp(Number(state.settings.centerRadius) || 78, 20, 260);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, TWO_PI);
-    ctx.fillStyle = state.settings.centerBg || "#0f1730";
-    ctx.fill();
-    ctx.restore();
-
-    if (centerImage) {
-      const scaleMul = clamp(Number(state.settings.centerImageScale) || 1, 0.6, 2);
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, TWO_PI);
-      ctx.clip();
-
-      const iw = centerImage.naturalWidth || centerImage.width;
-      const ih = centerImage.naturalHeight || centerImage.height;
-      const target = r * 2;
-
-      const coverScale = Math.max(target / iw, target / ih) * scaleMul;
-      const dw = iw * coverScale;
-      const dh = ih * coverScale;
-      ctx.drawImage(centerImage, cx - dw/2, cy - dh/2, dw, dh);
-
-      ctx.restore();
-    } else {
-      ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,.92)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `900 18px ${state.settings.fontFamily || "system-ui"}`;
-      ctx.fillText("SPIN", cx, cy);
-      ctx.restore();
-    }
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, TWO_PI);
-    ctx.strokeStyle = "rgba(255,255,255,.35)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-  }
-
   function drawWheel(){
-    const { w, h } = resizeCanvas();
+    const { w, h } = resizeCanvasLike(canvas, ctx);
     ctx.clearRect(0, 0, w, h);
 
     const cx = w/2, cy = h/2;
@@ -508,22 +531,6 @@
 
     const arc = TWO_PI / n;
 
-    // back plate
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius + 3, 0, TWO_PI);
-    ctx.fillStyle = "rgba(0,0,0,.14)";
-    ctx.fill();
-    ctx.restore();
-
-    const ff = state.settings.fontFamily || "system-ui";
-    const fstyle = state.settings.fontStyle || "normal";
-    const nameSize = clamp(Number(state.settings.nameFontSize) || 16, 10, 40);
-    const tableSize = clamp(Number(state.settings.tableFontSize) || 13, 8, 32);
-    const nameW = clamp(Number(state.settings.nameFontWeight) || 900, 100, 950);
-    const tableW = clamp(Number(state.settings.tableFontWeight) || 700, 100, 950);
-    const orientation = state.settings.textOrientation || "wheel";
-
     for (let i=0; i<n; i++){
       const o = wheelOptions[i];
       const start = rotation + START_ANGLE_OFFSET + i*arc;
@@ -536,8 +543,7 @@
       ctx.arc(cx, cy, radius, start, end);
       ctx.closePath();
 
-      const gradMode = state.settings.gradient === "on";
-      if (gradMode) {
+      if (state.settings.gradient === "on") {
         ctx.clip();
         const c1 = o.color1 || "#888888";
         const c2 = o.color2 || adjustHex(c1, -0.22);
@@ -552,7 +558,7 @@
       }
       ctx.restore();
 
-      // contour per slice
+      // contour
       const cw = clamp(Number(state.settings.contourWidth) || 0, 0, 30);
       if (cw > 0){
         ctx.save();
@@ -576,10 +582,9 @@
       ctx.rotate(mid);
       ctx.translate(radius*0.66, 0);
 
+      const orientation = state.settings.textOrientation || "wheel";
       const ang = normalizeAngle(mid);
 
-      // Fix "posisi tiba2 berubah":
-      // default = follow wheel (no flip), optional upright flip with stable line order.
       let flip = false;
       if (orientation === "upright") {
         flip = ang > Math.PI/2 && ang < 3*Math.PI/2;
@@ -590,38 +595,20 @@
       ctx.textBaseline = "middle";
       ctx.fillStyle = o.textColor || "#ffffff";
 
+      const nameSize = 16;
+      const tableSize = 13;
+
       let nameY = -Math.max(8, nameSize * 0.55);
       let tableY = Math.max(10, tableSize * 0.85);
 
-      // keep line order stable even if flipped
-      if (flip) {
-        nameY = -nameY;
-        tableY = -tableY;
-      }
+      if (flip) { nameY = -nameY; tableY = -tableY; }
 
-      ctx.font = `${fstyle} ${nameW} ${nameSize}px ${ff}`;
+      ctx.font = `900 ${nameSize}px system-ui`;
       ctx.fillText(name, 0, nameY);
 
-      ctx.font = `${fstyle} ${tableW} ${tableSize}px ${ff}`;
+      ctx.font = `700 ${tableSize}px system-ui`;
       ctx.fillText(table, 0, tableY);
 
-      ctx.restore();
-    }
-
-    // overlay
-    if (state.settings.overlay.enabled === "on" && Number(state.settings.overlay.alpha) > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, TWO_PI);
-      ctx.clip();
-
-      const g = ctx.createLinearGradient(cx-radius, cy-radius, cx+radius, cy+radius);
-      g.addColorStop(0, state.settings.overlay.a || "#22c55e");
-      g.addColorStop(1, state.settings.overlay.b || "#3b82f6");
-
-      ctx.globalAlpha = clamp(Number(state.settings.overlay.alpha) || 0.18, 0, 0.8);
-      ctx.fillStyle = g;
-      ctx.fillRect(cx-radius, cy-radius, radius*2, radius*2);
       ctx.restore();
     }
 
@@ -637,188 +624,30 @@
       ctx.restore();
     }
 
-    // highlight winner (when frozen wheel exists)
-    if (frozenWheel && frozenWheel.winnerIndex != null) {
-      const i = frozenWheel.winnerIndex;
-      if (i >= 0 && i < n) {
-        const start = rotation + START_ANGLE_OFFSET + i*arc;
-        const end = start + arc;
+    // center disc
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 76, 0, TWO_PI);
+    ctx.fillStyle = "rgba(15,23,48,.92)";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255,255,255,.35)";
+    ctx.stroke();
+    ctx.restore();
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, radius, start, end);
-        ctx.closePath();
-        ctx.lineWidth = 7;
-        ctx.strokeStyle = "rgba(255,255,255,.82)";
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
-    drawCenter(cx, cy);
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 18px system-ui";
+    ctx.fillText("SPIN", cx, cy);
+    ctx.restore();
   }
 
-  // ---------- Theme Studio ----------
-  function getThemeBaseColor(i, n, mode, a, b, c, stops){
-    if (mode === "mono") return a;
-
-    if (mode === "alternate") {
-      if (stops === 3) {
-        const m = i % 3;
-        return m === 0 ? a : (m === 1 ? b : c);
-      }
-      return (i % 2 === 0) ? a : b;
-    }
-
-    // spectrum
-    const t = (n === 1) ? 0 : (i/(n-1));
-    if (stops === 3) {
-      if (t < 0.5) return mixHex(a, b, t*2);
-      return mixHex(b, c, (t-0.5)*2);
-    }
-    return mixHex(a, b, t);
-  }
-
-  function renderPalette(){
-    const ts = state.settings.themeStudio;
-    const a = ts.a, b = ts.b, c = ts.c;
-    const mode = ts.mode;
-    const stops = Number(ts.stops) === 3 ? 3 : 2;
-    const lighten = Number(ts.lighten), darken = Number(ts.darken);
-
-    // disable Color C input if stops=2 (UX)
-    themeC.disabled = stops !== 3;
-    themeC.title = (stops !== 3) ? "Set Stops=3 untuk pakai Color C" : "";
-
-    const chipCount = Math.max(8, Math.min(16, state.options.length || 8));
-    palettePreview.innerHTML = "";
-
-    for (let i=0; i<chipCount; i++){
-      const base = getThemeBaseColor(i, chipCount, mode, a, b, c, stops);
-      const c1 = adjustHex(base, lighten);
-      const c2 = adjustHex(base, darken);
-
-      const chip = document.createElement("div");
-      chip.className = "chip";
-
-      const top = document.createElement("div");
-      top.className = "chipTop";
-      top.style.background = c1;
-
-      const bot = document.createElement("div");
-      bot.className = "chipBot";
-      bot.style.background = c2;
-
-      chip.append(top, bot);
-      chip.title = `Color1: ${c1}\nColor2: ${c2}`;
-      palettePreview.appendChild(chip);
-    }
-
-    const g = state.settings.gradient === "on" ? "Gradient ON" : "Gradient OFF";
-    paletteLabel.textContent = `${mode} • ${stops} stops • ${g}`;
-  }
-
-  function applyThemeToAll(){
-    const ts = state.settings.themeStudio;
-    const a = ts.a, b = ts.b, c = ts.c;
-    const mode = ts.mode;
-    const stops = Number(ts.stops) === 3 ? 3 : 2;
-    const lighten = Number(ts.lighten), darken = Number(ts.darken);
-    const txt = ts.text;
-
-    const n = state.options.length;
-    state.options = state.options.map((o,i) => {
-      const base = getThemeBaseColor(i, Math.max(1,n), mode, a, b, c, stops);
-      return {
-        ...o,
-        color1: adjustHex(base, lighten),
-        color2: adjustHex(base, darken),
-        textColor: txt,
-      };
-    });
-
-    saveState();
-    renderItems();
-    drawWheel();
-    toast("Theme applied to all slices.", "success");
-  }
-
-  function randomizeTheme(){
-    const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
-    state.settings.themeStudio.a = randHex();
-    state.settings.themeStudio.b = randHex();
-    state.settings.themeStudio.c = randHex();
-    saveState();
-    syncThemeUI();
-    renderPalette();
-    drawWheel();
-    toast("Random theme generated.", "info");
-  }
-
-  function applyPreset(name){
-    const ts = state.settings.themeStudio;
-
-    if (name === "neon") {
-      ts.a = "#22d3ee"; ts.b = "#a78bfa"; ts.c = "#22c55e";
-      ts.stops = 3;
-      ts.text = "#0b1022";
-      ts.mode = "spectrum";
-      ts.lighten = 0.10; ts.darken = -0.30;
-      state.settings.overlay.enabled = "on";
-      state.settings.overlay.alpha = 0.18;
-      state.settings.overlay.a = "#22c55e";
-      state.settings.overlay.b = "#3b82f6";
-    } else if (name === "pastel") {
-      ts.a = "#fca5a5"; ts.b = "#93c5fd"; ts.c = "#a7f3d0";
-      ts.stops = 3;
-      ts.text = "#111827";
-      ts.mode = "spectrum";
-      ts.lighten = 0.12; ts.darken = -0.18;
-      state.settings.overlay.enabled = "off";
-    } else if (name === "corporate") {
-      ts.a = "#60a5fa"; ts.b = "#22c55e"; ts.c = "#94a3b8";
-      ts.stops = 2;
-      ts.text = "#0b1022";
-      ts.mode = "alternate";
-      ts.lighten = 0.06; ts.darken = -0.22;
-      state.settings.overlay.enabled = "off";
-    } else if (name === "gold") {
-      ts.a = "#c8a85a"; ts.b = "#6b7280"; ts.c = "#111827";
-      ts.stops = 3;
-      ts.text = "#ffffff";
-      ts.mode = "alternate";
-      ts.lighten = 0.08; ts.darken = -0.26;
-      state.settings.overlay.enabled = "on";
-      state.settings.overlay.alpha = 0.12;
-      state.settings.overlay.a = "#c8a85a";
-      state.settings.overlay.b = "#111827";
-    } else if (name === "mono") {
-      ts.a = "#94a3b8"; ts.b = "#94a3b8"; ts.c = "#94a3b8";
-      ts.stops = 2;
-      ts.text = "#0b1022";
-      ts.mode = "mono";
-      ts.lighten = 0.10; ts.darken = -0.18;
-      state.settings.overlay.enabled = "off";
-    }
-
-    saveState();
-    syncThemeUI();
-    renderPalette();
-    drawWheel();
-    toast(`Preset applied: ${name}`, "success");
-  }
-
-  // ---------- List ----------
-  function syncCount(){
-    countPill.textContent = `${state.options.length} items`;
-  }
-
+  // ------------------ List rendering ------------------
+  function syncCount(){ countPill.textContent = `${state.options.length} items`; }
   function syncWinnerInline(){
-    if (!state.lastWinner) {
-      winnerInlineText.textContent = "-";
-      return;
-    }
+    if (!state.lastWinner) { winnerInlineText.textContent = "-"; return; }
     winnerInlineText.textContent = `${state.lastWinner.name} • ${state.lastWinner.table}`;
   }
 
@@ -830,12 +659,10 @@
       const match = !q ||
         (o.name || "").toLowerCase().includes(q) ||
         (o.table || "").toLowerCase().includes(q);
-
       if (!match) return;
 
       const card = document.createElement("div");
       card.className = "itemCard";
-      card.dataset.index = String(idx);
 
       const top = document.createElement("div");
       top.className = "itemTop";
@@ -863,14 +690,12 @@
       up.textContent = "↑";
       up.dataset.action = "up";
       up.dataset.index = String(idx);
-      up.title = "Move up";
 
       const down = document.createElement("button");
       down.className = "smallBtn";
       down.textContent = "↓";
       down.dataset.action = "down";
       down.dataset.index = String(idx);
-      down.title = "Move down";
 
       const del = document.createElement("button");
       del.className = "btn danger";
@@ -881,45 +706,7 @@
       del.dataset.index = String(idx);
 
       top.append(no, name, table, up, down, del);
-
-      const details = document.createElement("details");
-      details.className = "colorsDetails";
-
-      const summary = document.createElement("summary");
-      summary.className = "colorsSummary";
-
-      const sw = document.createElement("span");
-      sw.className = "swatch";
-      sw.style.background = o.color1 || "#888888";
-      summary.append(sw, document.createTextNode("Colors"));
-
-      const grid = document.createElement("div");
-      grid.className = "colorGrid";
-
-      const c1 = document.createElement("input");
-      c1.type = "color";
-      c1.value = safeColor(o.color1, "#888888");
-      c1.dataset.field = "color1";
-      c1.dataset.index = String(idx);
-
-      const c2 = document.createElement("input");
-      c2.type = "color";
-      c2.value = safeColor(o.color2, adjustHex(c1.value, -0.22));
-      c2.dataset.field = "color2";
-      c2.dataset.index = String(idx);
-      c2.disabled = state.settings.gradient !== "on";
-      c2.title = c2.disabled ? "Enable Gradient to use Color2" : "";
-
-      const tx = document.createElement("input");
-      tx.type = "color";
-      tx.value = safeColor(o.textColor, "#ffffff");
-      tx.dataset.field = "textColor";
-      tx.dataset.index = String(idx);
-
-      grid.append(c1, c2, tx);
-      details.append(summary, grid);
-
-      card.append(top, details);
+      card.append(top);
       itemsList.appendChild(card);
     });
 
@@ -937,33 +724,6 @@
       state.options[idx][field] = t.value;
       scheduleSave();
       drawWheel();
-      return;
-    }
-
-    if (field === "color1") {
-      state.options[idx].color1 = t.value;
-      const card = t.closest(".itemCard");
-      const sw = card?.querySelector(".swatch");
-      if (sw) sw.style.background = t.value;
-
-      if (!state.options[idx].color2) state.options[idx].color2 = adjustHex(t.value, -0.22);
-      scheduleSave();
-      drawWheel();
-      return;
-    }
-
-    if (field === "color2") {
-      state.options[idx].color2 = t.value;
-      scheduleSave();
-      drawWheel();
-      return;
-    }
-
-    if (field === "textColor") {
-      state.options[idx].textColor = t.value;
-      scheduleSave();
-      drawWheel();
-      return;
     }
   });
 
@@ -983,7 +743,6 @@
       toast("Item deleted.", "info");
       return;
     }
-
     if (action === "up" && idx > 0) {
       const tmp = state.options[idx-1];
       state.options[idx-1] = state.options[idx];
@@ -993,7 +752,6 @@
       drawWheel();
       return;
     }
-
     if (action === "down" && idx < state.options.length - 1) {
       const tmp = state.options[idx+1];
       state.options[idx+1] = state.options[idx];
@@ -1005,7 +763,6 @@
     }
   });
 
-  // ---------- Bulk ----------
   function parseBulk(text){
     const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
     const out = [];
@@ -1013,7 +770,6 @@
       const parts = line.includes("|") ? line.split("|") : line.split(",");
       const p = parts.map(x=>x.trim()).filter(x => x.length>0);
       if (p.length < 2) continue;
-
       const c1 = p[2] ? safeColor(p[2], "#888888") : "#888888";
       out.push({
         name: p[0],
@@ -1026,15 +782,50 @@
     return out;
   }
 
-  // ---------- Spin ----------
+  // ------------------ Prize Sequential ------------------
+  function cleanPrizeList(text){
+    return (text || "")
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function getNextPrizeAndAdvance(){
+    const list = state.settings.prizeList || [];
+    if (!list.length) return "";
+
+    let cursor = Number(state.settings.prizeCursor) || 0;
+    if (cursor >= list.length){
+      if (state.settings.prizeExhausted === "loop") cursor = 0;
+      else return "";
+    }
+
+    const prize = (list[cursor] || "").toString();
+    state.settings.prizeCursor = cursor + 1;
+    return prize;
+  }
+
+  function syncPrizePills(){
+    const list = state.settings.prizeList || [];
+    const cursor = clamp(Number(state.settings.prizeCursor)||0, 0, list.length);
+
+    if (!list.length) prizeNextPill.textContent = "Next: -";
+    else if (cursor >= list.length) prizeNextPill.textContent = "Next: (end)";
+    else prizeNextPill.textContent = `Next: ${list[cursor]}`;
+
+    spinCountPill.textContent = `Spin: ${Number(state.settings.spinCount)||0}`;
+  }
+
+  // ------------------ Spin ------------------
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
 
   function doSpin(){
     if (state.isSpinning) return;
     if (state.options.length < 2) return toast("Minimal 2 opsi untuk spin.", "error");
-
-    // close modal if open
     if (document.body.classList.contains("modal-open")) closeWinnerModal();
+
+    // ensure audio allowed after click
+    if (state.settings.soundEnabled === "on") ensureAudioCtx();
 
     state.isSpinning = true;
     document.body.classList.add("spinning");
@@ -1076,26 +867,26 @@
         document.body.classList.remove("spinning");
         spinBtn.disabled = false;
 
-        // resolve winner on PRE-REMOVE wheel
         const finalIndex = getSelectedIndex(state.rotation, preOptions.length);
         const winnerItem = preOptions[finalIndex];
 
-        // freeze wheel snapshot so it still shows correct winner slice behind modal
         frozenWheel = {
           rotation: state.rotation,
           options: clone(preOptions),
           winnerIndex: finalIndex,
         };
 
+        // prize = sequential by spin order
+        const prize = getNextPrizeAndAdvance();
+
+        state.settings.spinCount = (Number(state.settings.spinCount) || 0) + 1;
+
         state.lastWinner = {
           name: winnerItem?.name ?? "",
           table: winnerItem?.table ?? "",
-          color1: winnerItem?.color1 ?? "#60a5fa",
-          color2: winnerItem?.color2 ?? adjustHex(winnerItem?.color1 ?? "#60a5fa", -0.22),
-          textColor: winnerItem?.textColor ?? "#ffffff"
+          prize: prize || "—"
         };
 
-        // AUTO REMOVE winner from live list (so next spin won't include it)
         state.lastRemoved = null;
         if (state.settings.removeAfterWin === "on") {
           state.lastRemoved = { item: clone(winnerItem), index: finalIndex };
@@ -1106,7 +897,13 @@
         saveState();
         renderItems();
         syncWinnerInline();
-        drawWheel(); // uses frozenWheel => still shows winner slice
+        syncPrizePills();
+        drawWheel();
+
+        // celebration
+        spawnConfetti();
+        playWinSound();
+
         openWinnerModal();
       }
     };
@@ -1114,36 +911,63 @@
     requestAnimationFrame(tick);
   }
 
-  // ---------- Center image ----------
-  function loadCenterImage(){
-    centerImage = null;
-    centerPreview.src = "";
-    if (!state.centerImageDataUrl) return;
-
-    const img = new Image();
-    img.onload = () => {
-      centerImage = img;
-      centerPreview.src = state.centerImageDataUrl;
-      drawWheel();
-    };
-    img.src = state.centerImageDataUrl;
-  }
-
-  // ---------- Fullscreen ----------
   async function toggleFullscreen(){
     try{
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
     }catch{
-      toast("Fullscreen failed (browser blocked).", "error");
+      toast("Fullscreen blocked by browser.", "error");
     }
   }
 
-  // ---------- Sync UI inputs ----------
-  function syncThemeUI(){
+  // ------------------ Theme apply ------------------
+  function getThemeBaseColor(i, n, mode, a, b, c, stops){
+    if (mode === "mono") return a;
+    if (mode === "alternate") {
+      if (stops === 3) {
+        const m = i % 3;
+        return m === 0 ? a : (m === 1 ? b : c);
+      }
+      return (i % 2 === 0) ? a : b;
+    }
+    const t = (n === 1) ? 0 : (i/(n-1));
+    if (stops === 3) {
+      if (t < 0.5) return mixHex(a, b, t*2);
+      return mixHex(b, c, (t-0.5)*2);
+    }
+    return mixHex(a, b, t);
+  }
+  function applyThemeToAll(){
+    const ts = state.settings.themeStudio;
+    const a = ts.a, b = ts.b, c = ts.c;
+    const mode = ts.mode;
+    const stops = Number(ts.stops) === 3 ? 3 : 2;
+    const lighten = Number(ts.lighten), darken = Number(ts.darken);
+    const txt = ts.text;
+
+    const n = state.options.length;
+    state.options = state.options.map((o,i) => {
+      const base = getThemeBaseColor(i, Math.max(1,n), mode, a, b, c, stops);
+      const c1 = adjustHex(base, lighten);
+      const c2 = adjustHex(base, darken);
+      return { ...o, color1: c1, color2: c2, textColor: txt };
+    });
+
+    saveState();
+    renderItems();
+    drawWheel();
+    toast("Theme applied to all slices.", "success");
+  }
+  function randomizeTheme(){
+    const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
+    state.settings.themeStudio.a = randHex();
+    state.settings.themeStudio.b = randHex();
+    state.settings.themeStudio.c = randHex();
+    syncThemeInputs();
+    saveState();
+    toast("Random theme generated.", "info");
+  }
+  function syncThemeInputs(){
     const ts = state.settings.themeStudio;
     themeA.value = safeColor(ts.a, "#60a5fa");
     themeB.value = safeColor(ts.b, "#a78bfa");
@@ -1153,22 +977,17 @@
     themeStops.value = String(Number(ts.stops) === 3 ? 3 : 2);
     themeLighten.value = String(ts.lighten);
     themeDarken.value = String(ts.darken);
+    themeC.disabled = Number(themeStops.value) !== 3;
   }
 
-  function syncAllInputsFromState(){
-    syncCount();
-    syncWinnerInline();
+  function syncAllInputs(){
+    prizeListInput.value = (state.settings.prizeList || []).join("\n");
+    prizeExhausted.value = state.settings.prizeExhausted || "loop";
 
-    // Theme
-    syncThemeUI();
+    confettiEnabled.value = state.settings.confettiEnabled || "on";
+    soundEnabled.value = state.settings.soundEnabled || "on";
+    soundVolume.value = String(clamp(Number(state.settings.soundVolume)||0.7, 0, 1));
 
-    // Overlay
-    overlayEnabled.value = state.settings.overlay.enabled;
-    overlayAlpha.value = String(state.settings.overlay.alpha);
-    overlayA.value = safeColor(state.settings.overlay.a, "#22c55e");
-    overlayB.value = safeColor(state.settings.overlay.b, "#3b82f6");
-
-    // Wheel
     gradientMode.value = state.settings.gradient;
     removeAfterWin.value = state.settings.removeAfterWin;
     contourWidth.value = String(state.settings.contourWidth);
@@ -1178,75 +997,39 @@
     spinDurationMs.value = String(state.settings.spinDurationMs);
     minSpins.value = String(state.settings.minSpins);
     maxSpins.value = String(state.settings.maxSpins);
+    textOrientation.value = state.settings.textOrientation || "wheel";
 
-    // Text
-    fontFamily.value = state.settings.fontFamily;
-    fontStyle.value = state.settings.fontStyle;
-    nameFontSize.value = String(state.settings.nameFontSize);
-    tableFontSize.value = String(state.settings.tableFontSize);
-    nameFontWeight.value = String(state.settings.nameFontWeight);
-    tableFontWeight.value = String(state.settings.tableFontWeight);
-    textOrientation.value = state.settings.textOrientation;
-
-    // Center
-    centerRadius.value = String(state.settings.centerRadius);
-    centerBg.value = safeColor(state.settings.centerBg, "#0f1730");
-    centerImageScale.value = String(state.settings.centerImageScale);
-
-    // UI colors
-    const ui = state.settings.ui;
-    uiBg0.value = safeColor(ui.bg0, "#070a14");
-    uiBg1.value = safeColor(ui.bg1, "#0b1022");
-    uiAccentA.value = safeColor(ui.accentA, "#60a5fa");
-    uiAccentB.value = safeColor(ui.accentB, "#a78bfa");
-    uiText.value = safeColor(ui.text, "#eaf0ff");
-    uiMuted.value = safeColor(ui.muted, "#aab3d7");
-    uiLine.value = safeColor(ui.line, "#ffffff");
-    uiDanger.value = safeColor(ui.danger, "#ff6b6b");
-    uiBrandGold.value = safeColor(ui.brandGold, "#c8a85a");
-    uiPointerOuter.value = safeColor(ui.pointerOuter, "#ffffff");
-    uiPointerInner.value = safeColor(ui.pointerInner, "#60a5fa");
-    uiEffects.value = ui.effects;
-    uiGrid.value = ui.grid;
+    syncThemeInputs();
+    syncWinnerInline();
+    syncCount();
+    syncPrizePills();
   }
 
-  // ---------- Events ----------
-  // Drawer open/close
+  // ------------------ Events ------------------
   openDrawerBtn.addEventListener("click", () => openDrawer(state.activeTab || "list"));
   drawerCloseBtn.addEventListener("click", closeDrawer);
   drawerBackdrop.addEventListener("click", closeDrawer);
 
-  tabBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      state.activeTab = tab;
-      saveState();
-      setActiveTab(tab);
-    });
-  });
+  tabBtns.forEach(btn => btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    state.activeTab = tab;
+    saveState();
+    setActiveTab(tab);
+  }));
 
-  // FAB open tabs
-  fabStack.addEventListener("click", (e) => {
+  document.querySelector(".fabStack").addEventListener("click", (e) => {
     const b = e.target.closest(".fabBtn");
     if (!b) return;
     const tab = b.dataset.openTab;
     if (tab) openDrawer(tab);
   });
 
-  // Spin + winner inline
   spinBtn.addEventListener("click", doSpin);
-  winnerInline.addEventListener("click", () => {
-    if (!state.lastWinner) return;
-    openWinnerModal();
-  });
+  winnerInline.addEventListener("click", openWinnerModal);
 
-  // Winner modal actions
   winnerCloseBtn.addEventListener("click", closeWinnerModal);
   winnerModalBackdrop.addEventListener("click", closeWinnerModal);
-  spinAgainBtn.addEventListener("click", () => {
-    closeWinnerModal();
-    doSpin();
-  });
+  spinAgainBtn.addEventListener("click", () => { closeWinnerModal(); doSpin(); });
 
   undoRemoveBtn.addEventListener("click", () => {
     if (!state.lastRemoved) return;
@@ -1257,27 +1040,31 @@
     saveState();
     renderItems();
     drawWheel();
-    toast("Undo: winner restored to list.", "success");
-    // keep modal open; button will hide next refresh
+    toast("Undo: winner restored.", "success");
     undoRemoveBtn.style.display = "none";
   });
 
-  // Quick add
   quickAddBtn.addEventListener("click", () => {
     const name = (quickName.value || "").trim();
     const table = (quickTable.value || "").trim();
     if (!name) return toast("Nama wajib diisi.", "error");
-    state.options.push({ name, table, color1:"#888888", color2:"#555555", textColor:"#ffffff" });
+
+    state.options.push({
+      name,
+      table,
+      color1:"#888888",
+      color2:"#555555",
+      textColor:"#ffffff",
+    });
+
     quickName.value = "";
     quickTable.value = "";
     saveState();
     renderItems();
     drawWheel();
-    renderPalette();
     toast("Item added.", "success");
   });
 
-  // Auto colors + auto text
   autoColorsBtn.addEventListener("click", () => {
     const n = state.options.length;
     state.options = state.options.map((o,i) => {
@@ -1322,7 +1109,6 @@
 
   searchInput.addEventListener("input", renderItems);
 
-  // Bulk
   bulkReplaceBtn.addEventListener("click", () => {
     const parsed = parseBulk(bulkInput.value);
     if (!parsed.length) return toast("Bulk invalid. Minimal: Nama|S1 per baris.", "error");
@@ -1333,7 +1119,6 @@
     saveState();
     renderItems();
     drawWheel();
-    renderPalette();
     syncWinnerInline();
     toast("List replaced from bulk.", "success");
   });
@@ -1345,72 +1130,50 @@
     saveState();
     renderItems();
     drawWheel();
-    renderPalette();
     toast("Bulk appended.", "success");
   });
 
-  // Theme inputs
-  [themeA, themeB, themeC, themeText].forEach(inp => inp.addEventListener("input", () => {
-    state.settings.themeStudio.a = themeA.value;
-    state.settings.themeStudio.b = themeB.value;
-    state.settings.themeStudio.c = themeC.value;
-    state.settings.themeStudio.text = themeText.value;
-    saveState();
-    renderPalette();
-  }));
-
-  themeMode.addEventListener("change", () => {
-    state.settings.themeStudio.mode = themeMode.value;
-    saveState();
-    renderPalette();
+  // Prize settings
+  prizeListInput.addEventListener("input", () => {
+    state.settings.prizeList = cleanPrizeList(prizeListInput.value);
+    state.settings.prizeCursor = clamp(Number(state.settings.prizeCursor)||0, 0, state.settings.prizeList.length);
+    scheduleSave();
+    syncPrizePills();
   });
 
-  themeStops.addEventListener("change", () => {
-    state.settings.themeStudio.stops = Number(themeStops.value) === 3 ? 3 : 2;
+  prizeExhausted.addEventListener("change", () => {
+    state.settings.prizeExhausted = prizeExhausted.value;
     saveState();
-    renderPalette();
+    syncPrizePills();
   });
 
-  themeLighten.addEventListener("input", () => {
-    state.settings.themeStudio.lighten = Number(themeLighten.value);
+  resetPrizeCursorBtn.addEventListener("click", () => {
+    state.settings.prizeCursor = 0;
+    state.settings.spinCount = 0;
     saveState();
-    renderPalette();
+    syncPrizePills();
+    toast("Prize reset to #1.", "info");
   });
 
-  themeDarken.addEventListener("input", () => {
-    state.settings.themeStudio.darken = Number(themeDarken.value);
-    saveState();
-    renderPalette();
+  // Celebration settings
+  confettiEnabled.addEventListener("change", () => { state.settings.confettiEnabled = confettiEnabled.value; saveState(); });
+  soundEnabled.addEventListener("change", () => { state.settings.soundEnabled = soundEnabled.value; saveState(); });
+  soundVolume.addEventListener("input", () => {
+    state.settings.soundVolume = clamp(Number(soundVolume.value)||0.7, 0, 1);
+    scheduleSave();
   });
 
-  applyThemeBtn.addEventListener("click", applyThemeToAll);
-  randomThemeBtn.addEventListener("click", randomizeTheme);
-
-  document.querySelectorAll(".chipBtn").forEach(btn => {
-    btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+  soundFileInput.addEventListener("change", () => {
+    const f = soundFileInput.files && soundFileInput.files[0];
+    if (!f) return;
+    if (uploadedAudioUrl) URL.revokeObjectURL(uploadedAudioUrl);
+    uploadedAudioUrl = URL.createObjectURL(f);
+    toast("Custom sound loaded.", "success");
   });
-
-  // Overlay
-  overlayEnabled.addEventListener("change", () => { state.settings.overlay.enabled = overlayEnabled.value; saveState(); drawWheel(); });
-  overlayAlpha.addEventListener("input", () => { state.settings.overlay.alpha = Number(overlayAlpha.value); saveState(); drawWheel(); });
-  overlayA.addEventListener("input", () => { state.settings.overlay.a = overlayA.value; saveState(); drawWheel(); });
-  overlayB.addEventListener("input", () => { state.settings.overlay.b = overlayB.value; saveState(); drawWheel(); });
 
   // Wheel settings
-  gradientMode.addEventListener("change", () => {
-    state.settings.gradient = gradientMode.value;
-    saveState();
-    renderItems();
-    drawWheel();
-    renderPalette();
-  });
-
-  removeAfterWin.addEventListener("change", () => {
-    state.settings.removeAfterWin = removeAfterWin.value;
-    saveState();
-    toast(`Auto remove winners: ${removeAfterWin.value.toUpperCase()}`, "info");
-  });
-
+  gradientMode.addEventListener("change", () => { state.settings.gradient = gradientMode.value; saveState(); drawWheel(); });
+  removeAfterWin.addEventListener("change", () => { state.settings.removeAfterWin = removeAfterWin.value; saveState(); toast(`Auto remove: ${removeAfterWin.value.toUpperCase()}`, "info"); });
   contourWidth.addEventListener("input", () => { state.settings.contourWidth = clamp(Number(contourWidth.value)||0,0,30); saveState(); drawWheel(); });
   contourColor.addEventListener("input", () => { state.settings.contourColor = contourColor.value; saveState(); drawWheel(); });
   outerBorderWidth.addEventListener("input", () => { state.settings.outerBorderWidth = clamp(Number(outerBorderWidth.value)||0,0,40); saveState(); drawWheel(); });
@@ -1428,74 +1191,26 @@
     minSpins.value = String(state.settings.minSpins);
     saveState();
   });
-
-  // Text settings
-  fontFamily.addEventListener("change", () => { state.settings.fontFamily = fontFamily.value; saveState(); drawWheel(); });
-  fontStyle.addEventListener("change", () => { state.settings.fontStyle = fontStyle.value; saveState(); drawWheel(); });
-  nameFontSize.addEventListener("input", () => { state.settings.nameFontSize = Number(nameFontSize.value); saveState(); drawWheel(); });
-  tableFontSize.addEventListener("input", () => { state.settings.tableFontSize = Number(tableFontSize.value); saveState(); drawWheel(); });
-  nameFontWeight.addEventListener("change", () => { state.settings.nameFontWeight = Number(nameFontWeight.value); saveState(); drawWheel(); });
-  tableFontWeight.addEventListener("change", () => { state.settings.tableFontWeight = Number(tableFontWeight.value); saveState(); drawWheel(); });
   textOrientation.addEventListener("change", () => { state.settings.textOrientation = textOrientation.value; saveState(); drawWheel(); });
 
-  // Center settings
-  centerRadius.addEventListener("input", () => { state.settings.centerRadius = clamp(Number(centerRadius.value)||78,20,260); saveState(); drawWheel(); });
-  centerBg.addEventListener("input", () => { state.settings.centerBg = centerBg.value; saveState(); drawWheel(); });
-  centerImageScale.addEventListener("input", () => { state.settings.centerImageScale = clamp(Number(centerImageScale.value)||1,0.6,2); saveState(); drawWheel(); });
-
-  centerImageInput.addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      state.centerImageDataUrl = reader.result;
-      saveState();
-      loadCenterImage();
-      toast("Center image set.", "success");
-    };
-    reader.readAsDataURL(file);
-    centerImageInput.value = "";
-  });
-
-  removeCenterImageBtn.addEventListener("click", () => {
-    state.centerImageDataUrl = null;
-    centerImage = null;
-    centerPreview.src = "";
+  // Theme studio bindings
+  [themeA, themeB, themeC, themeText].forEach(inp => inp.addEventListener("input", () => {
+    state.settings.themeStudio.a = themeA.value;
+    state.settings.themeStudio.b = themeB.value;
+    state.settings.themeStudio.c = themeC.value;
+    state.settings.themeStudio.text = themeText.value;
     saveState();
-    drawWheel();
-    toast("Center image removed.", "info");
-  });
-
-  // UI Colors
-  function bindUiColorInput(el, key){
-    el.addEventListener("input", () => {
-      state.settings.ui[key] = el.value;
-      saveState();
-      applyUiTheme();
-    });
-  }
-  bindUiColorInput(uiBg0, "bg0");
-  bindUiColorInput(uiBg1, "bg1");
-  bindUiColorInput(uiAccentA, "accentA");
-  bindUiColorInput(uiAccentB, "accentB");
-  bindUiColorInput(uiText, "text");
-  bindUiColorInput(uiMuted, "muted");
-  bindUiColorInput(uiLine, "line");
-  bindUiColorInput(uiDanger, "danger");
-  bindUiColorInput(uiBrandGold, "brandGold");
-  bindUiColorInput(uiPointerOuter, "pointerOuter");
-  bindUiColorInput(uiPointerInner, "pointerInner");
-
-  uiEffects.addEventListener("change", () => { state.settings.ui.effects = uiEffects.value; saveState(); applyUiTheme(); });
-  uiGrid.addEventListener("change", () => { state.settings.ui.grid = uiGrid.value; saveState(); applyUiTheme(); });
-
-  resetUiBtn.addEventListener("click", () => {
-    state.settings.ui = clone(defaultState.settings.ui);
+  }));
+  themeMode.addEventListener("change", () => { state.settings.themeStudio.mode = themeMode.value; saveState(); });
+  themeStops.addEventListener("change", () => {
+    state.settings.themeStudio.stops = Number(themeStops.value) === 3 ? 3 : 2;
+    themeC.disabled = Number(themeStops.value) !== 3;
     saveState();
-    syncAllInputsFromState();
-    applyUiTheme();
-    toast("UI colors reset.", "info");
   });
+  themeLighten.addEventListener("input", () => { state.settings.themeStudio.lighten = Number(themeLighten.value); saveState(); });
+  themeDarken.addEventListener("input", () => { state.settings.themeStudio.darken = Number(themeDarken.value); saveState(); });
+  applyThemeBtn.addEventListener("click", applyThemeToAll);
+  randomThemeBtn.addEventListener("click", randomizeTheme);
 
   // Export/Import
   exportBtn.addEventListener("click", async () => {
@@ -1519,17 +1234,18 @@
       state = Object.assign(clone(defaultState), parsed);
       state.settings = Object.assign(clone(defaultState.settings), parsed.settings || {});
       state.settings.themeStudio = Object.assign(clone(defaultState.settings.themeStudio), parsed.settings?.themeStudio || {});
-      state.settings.overlay = Object.assign(clone(defaultState.settings.overlay), parsed.settings?.overlay || {});
-      state.settings.ui = Object.assign(clone(defaultState.settings.ui), parsed.settings?.ui || {});
+      state.options = Array.isArray(state.options) ? state.options : clone(defaultState.options);
+
+      if (!Array.isArray(state.settings.prizeList)) state.settings.prizeList = clone(defaultState.settings.prizeList);
+      state.settings.prizeCursor = clamp(Number(state.settings.prizeCursor)||0, 0, state.settings.prizeList.length);
+      state.settings.spinCount = clamp(Number(state.settings.spinCount)||0, 0, 999999);
+      state.settings.soundVolume = clamp(Number(state.settings.soundVolume)||0.7, 0, 1);
 
       frozenWheel = null;
       saveState();
 
-      applyUiTheme();
-      syncAllInputsFromState();
+      syncAllInputs();
       renderItems();
-      renderPalette();
-      loadCenterImage();
       drawWheel();
       syncWinnerInline();
 
@@ -1544,11 +1260,8 @@
     state = clone(defaultState);
     frozenWheel = null;
     saveState();
-    applyUiTheme();
-    syncAllInputsFromState();
+    syncAllInputs();
     renderItems();
-    renderPalette();
-    loadCenterImage();
     drawWheel();
     toast("Reset done.", "info");
   });
@@ -1559,11 +1272,8 @@
     state = clone(defaultState);
     frozenWheel = null;
     saveState();
-    applyUiTheme();
-    syncAllInputsFromState();
+    syncAllInputs();
     renderItems();
-    renderPalette();
-    loadCenterImage();
     drawWheel();
     toast("Storage cleared.", "info");
   });
@@ -1572,41 +1282,37 @@
   fullscreenBtn.addEventListener("click", toggleFullscreen);
   fabFullscreenBtn.addEventListener("click", toggleFullscreen);
 
-  // Keyboard shortcuts
+  // Shortcuts (SAFE: disable when typing or inside drawer)
   window.addEventListener("keydown", (e) => {
-    if (e.key === " " && !e.repeat) {
-      e.preventDefault();
-      doSpin();
-      return;
-    }
+    const t = e.target;
+    const isTyping =
+      t instanceof HTMLElement &&
+      (t.matches("input, textarea, select") || t.isContentEditable || t.closest("aside.drawer"));
+
+    if (isTyping) return;
+
+    if (e.key === " " && !e.repeat) { e.preventDefault(); doSpin(); return; }
 
     if (e.key === "Escape") {
-      if (document.body.classList.contains("modal-open")) return closeWinnerModal();
-      if (document.body.classList.contains("drawer-open")) return closeDrawer();
+      if (document.body.classList.contains("modal-open")) { closeWinnerModal(); return; }
+      if (document.body.classList.contains("drawer-open")) { closeDrawer(); return; }
       return;
     }
 
-    const tag = (document.activeElement?.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || tag === "select") return;
-
-    if (e.key.toLowerCase() === "l") openDrawer("list");
-    if (e.key.toLowerCase() === "t") openDrawer("theme");
-    if (e.key.toLowerCase() === "w") openDrawer("wheel");
     if (e.key.toLowerCase() === "s") openDrawer(state.activeTab || "list");
     if (e.key.toLowerCase() === "f") toggleFullscreen();
   });
 
-  // Resize
-  window.addEventListener("resize", () => drawWheel());
-  document.addEventListener("fullscreenchange", () => drawWheel());
-
-  // ---------- Init ----------
-  applyUiTheme();
-  syncAllInputsFromState();
+  // init
+  syncAllInputs();
   setActiveTab(state.activeTab || "list");
   renderItems();
-  renderPalette();
-  loadCenterImage();
   syncWinnerInline();
   drawWheel();
+  resizeConfetti();
+
+  window.addEventListener("resize", () => {
+    drawWheel();
+    resizeConfetti();
+  });
 })();

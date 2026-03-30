@@ -59,14 +59,15 @@
   const minSpins = $("minSpins");
   const maxSpins = $("maxSpins");
   const textOrientation = $("textOrientation");
+  const nameFontSize = $("nameFontSize");
+  const tableFontSize = $("tableFontSize");
 
   // Theme tab (slices)
-  const themeA = $("themeA");
-  const themeB = $("themeB");
-  const themeC = $("themeC");
+  const themePaletteList = $("themePaletteList");
+  const addThemeColorBtn = $("addThemeColorBtn");
+  const removeThemeColorBtn = $("removeThemeColorBtn");
   const themeText = $("themeText");
   const themeMode = $("themeMode");
-  const themeStops = $("themeStops");
   const themeLighten = $("themeLighten");
   const themeDarken = $("themeDarken");
   const applyThemeBtn = $("applyThemeBtn");
@@ -416,12 +417,11 @@
       minSpins: 6,
       maxSpins: 10,
       textOrientation: "wheel",
+      nameFontSize: 16,
+      tableFontSize: 13,
 
       themeStudio: {
-        a: "#60a5fa",
-        b: "#a78bfa",
-        c: "#22c55e",
-        stops: 2,
+        colors: ["#60a5fa", "#a78bfa", "#22c55e", "#f97316", "#facc15", "#ec4899"],
         text: "#ffffff",
         mode: "spectrum",
         lighten: 0.08,
@@ -469,10 +469,19 @@
       merged.settings.background = Object.assign(clone(defaultState.settings.background), parsed.settings?.background || {});
       merged.options = Array.isArray(parsed.options) ? parsed.options : clone(defaultState.options);
 
+      const legacyTheme = parsed.settings?.themeStudio || {};
+      const legacyColors = [legacyTheme.a, legacyTheme.b, legacyTheme.c].filter(Boolean);
+      merged.settings.themeStudio.colors = Array.isArray(merged.settings.themeStudio.colors)
+        ? merged.settings.themeStudio.colors.filter(Boolean)
+        : legacyColors;
+      if (!merged.settings.themeStudio.colors.length) merged.settings.themeStudio.colors = clone(defaultState.settings.themeStudio.colors);
+
       if (!Array.isArray(merged.settings.prizeList)) merged.settings.prizeList = clone(defaultState.settings.prizeList);
       merged.settings.prizeCursor = clamp(Number(merged.settings.prizeCursor)||0, 0, merged.settings.prizeList.length);
       merged.settings.spinCount = clamp(Number(merged.settings.spinCount)||0, 0, 999999);
       merged.settings.soundVolume = clamp(Number(merged.settings.soundVolume)||0.7, 0, 1);
+      merged.settings.nameFontSize = Math.max(1, Number(merged.settings.nameFontSize) || defaultState.settings.nameFontSize);
+      merged.settings.tableFontSize = Math.max(1, Number(merged.settings.tableFontSize) || defaultState.settings.tableFontSize);
 
       // sanitize bg
       merged.settings.background.mode = ["solid","gradient","glow"].includes(merged.settings.background.mode) ? merged.settings.background.mode : "glow";
@@ -550,6 +559,19 @@
     const arc = TWO_PI / n;
     const rel = normalizeAngle(-rotation);
     return clamp(Math.floor(rel / arc), 0, n - 1);
+  }
+
+  function fitTextSize(text, targetSize, maxWidth, weight = 700, minSize = 8){
+    const content = (text ?? "").toString();
+    let size = Math.max(minSize, Number(targetSize) || minSize);
+    if (!content) return size;
+
+    while (size > minSize) {
+      ctx.font = `${weight} ${size}px system-ui`;
+      if (ctx.measureText(content).width <= maxWidth) break;
+      size -= 1;
+    }
+    return Math.max(minSize, size);
   }
 
   function drawWheel(){
@@ -637,18 +659,25 @@
       ctx.textBaseline = "middle";
       ctx.fillStyle = o.textColor || "#ffffff";
 
-      const nameSize = 16;
-      const tableSize = 13;
+      const desiredNameSize = Math.max(1, Number(state.settings.nameFontSize) || 16);
+      const desiredTableSize = Math.max(1, Number(state.settings.tableFontSize) || 13);
+      const sliceChord = 2 * radius * Math.sin(arc / 2);
+      const maxTextWidth = Math.max(28, sliceChord * 0.78);
+      const nameSize = fitTextSize(name, desiredNameSize, maxTextWidth, 900, 8);
+      const tableSize = fitTextSize(table, desiredTableSize, maxTextWidth * 0.92, 700, 7);
 
-      let nameY = -Math.max(8, nameSize * 0.55);
-      let tableY = Math.max(10, tableSize * 0.85);
+      const lineGap = Math.max(8, Math.max(nameSize, tableSize) * 0.22);
+      let nameY = -(table ? (tableSize * 0.5 + lineGap) : 0);
+      let tableY = table ? (nameSize * 0.5 + lineGap) : 0;
       if (flip) { nameY = -nameY; tableY = -tableY; }
 
       ctx.font = `900 ${nameSize}px system-ui`;
       ctx.fillText(name, 0, nameY);
 
-      ctx.font = `700 ${tableSize}px system-ui`;
-      ctx.fillText(table, 0, tableY);
+      if (table) {
+        ctx.font = `700 ${tableSize}px system-ui`;
+        ctx.fillText(table, 0, tableY);
+      }
 
       ctx.restore();
     }
@@ -951,34 +980,31 @@
   }
 
   // ------------------ Theme apply (Slices) ------------------
-  function getThemeBaseColor(i, n, mode, a, b, c, stops){
-    if (mode === "mono") return a;
-    if (mode === "alternate") {
-      if (stops === 3) {
-        const m = i % 3;
-        return m === 0 ? a : (m === 1 ? b : c);
-      }
-      return (i % 2 === 0) ? a : b;
-    }
-    const t = (n === 1) ? 0 : (i/(n-1));
-    if (stops === 3) {
-      if (t < 0.5) return mixHex(a, b, t*2);
-      return mixHex(b, c, (t-0.5)*2);
-    }
-    return mixHex(a, b, t);
+  function getThemeBaseColor(i, n, mode, colors){
+    const palette = Array.isArray(colors) ? colors.filter(Boolean) : [];
+    const safePalette = palette.length ? palette : clone(defaultState.settings.themeStudio.colors);
+    if (mode === "mono") return safePalette[0];
+    if (mode === "alternate") return safePalette[i % safePalette.length];
+    if (safePalette.length === 1 || n <= 1) return safePalette[0];
+
+    const t = i / Math.max(1, n - 1);
+    const scaled = t * (safePalette.length - 1);
+    const leftIndex = Math.floor(scaled);
+    const rightIndex = Math.min(safePalette.length - 1, leftIndex + 1);
+    const mixT = scaled - leftIndex;
+    return mixHex(safePalette[leftIndex], safePalette[rightIndex], mixT);
   }
 
   function applyThemeToAll(){
     const ts = state.settings.themeStudio;
-    const a = ts.a, b = ts.b, c = ts.c;
+    const palette = Array.isArray(ts.colors) && ts.colors.length ? ts.colors : clone(defaultState.settings.themeStudio.colors);
     const mode = ts.mode;
-    const stops = Number(ts.stops) === 3 ? 3 : 2;
     const lighten = Number(ts.lighten), darken = Number(ts.darken);
     const txt = ts.text;
 
     const n = state.options.length;
     state.options = state.options.map((o,i) => {
-      const base = getThemeBaseColor(i, Math.max(1,n), mode, a, b, c, stops);
+      const base = getThemeBaseColor(i, Math.max(1,n), mode, palette);
       const c1 = adjustHex(base, lighten);
       const c2 = adjustHex(base, darken);
       return { ...o, color1: c1, color2: c2, textColor: txt };
@@ -992,25 +1018,43 @@
 
   function randomizeTheme(){
     const randHex = () => "#" + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
-    state.settings.themeStudio.a = randHex();
-    state.settings.themeStudio.b = randHex();
-    state.settings.themeStudio.c = randHex();
+    const current = Array.isArray(state.settings.themeStudio.colors) && state.settings.themeStudio.colors.length
+      ? state.settings.themeStudio.colors.length
+      : defaultState.settings.themeStudio.colors.length;
+    state.settings.themeStudio.colors = Array.from({ length: current }, randHex);
     syncThemeInputs();
     saveState();
     toast("Random theme generated.", "info");
   }
 
+  function renderThemePalette(){
+    const colors = state.settings.themeStudio.colors;
+    themePaletteList.innerHTML = "";
+    colors.forEach((color, idx) => {
+      const item = document.createElement("label");
+      item.className = "themeColorItem";
+
+      const label = document.createElement("span");
+      label.textContent = `Color ${idx + 1}`;
+
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = safeColor(color, defaultState.settings.themeStudio.colors[idx % defaultState.settings.themeStudio.colors.length]);
+      input.dataset.index = String(idx);
+
+      item.append(label, input);
+      themePaletteList.appendChild(item);
+    });
+  }
+
   function syncThemeInputs(){
     const ts = state.settings.themeStudio;
-    themeA.value = safeColor(ts.a, "#60a5fa");
-    themeB.value = safeColor(ts.b, "#a78bfa");
-    themeC.value = safeColor(ts.c, "#22c55e");
+    if (!Array.isArray(ts.colors) || !ts.colors.length) ts.colors = clone(defaultState.settings.themeStudio.colors);
     themeText.value = safeColor(ts.text, "#ffffff");
     themeMode.value = ts.mode;
-    themeStops.value = String(Number(ts.stops) === 3 ? 3 : 2);
     themeLighten.value = String(ts.lighten);
     themeDarken.value = String(ts.darken);
-    themeC.disabled = Number(themeStops.value) !== 3;
+    renderThemePalette();
   }
 
   // Background Studio sync
@@ -1042,6 +1086,8 @@
     minSpins.value = String(state.settings.minSpins);
     maxSpins.value = String(state.settings.maxSpins);
     textOrientation.value = state.settings.textOrientation || "wheel";
+    nameFontSize.value = String(Math.max(1, Number(state.settings.nameFontSize) || defaultState.settings.nameFontSize));
+    tableFontSize.value = String(Math.max(1, Number(state.settings.tableFontSize) || defaultState.settings.tableFontSize));
 
     syncThemeInputs();
     syncBackgroundInputs();
@@ -1234,23 +1280,49 @@
     saveState();
   });
   textOrientation.addEventListener("change", () => { state.settings.textOrientation = textOrientation.value; saveState(); drawWheel(); });
+  nameFontSize.addEventListener("input", () => {
+    state.settings.nameFontSize = Math.max(1, Number(nameFontSize.value) || defaultState.settings.nameFontSize);
+    scheduleSave();
+    drawWheel();
+  });
+  tableFontSize.addEventListener("input", () => {
+    state.settings.tableFontSize = Math.max(1, Number(tableFontSize.value) || defaultState.settings.tableFontSize);
+    scheduleSave();
+    drawWheel();
+  });
 
   // Theme studio (slices)
-  [themeA, themeB, themeC, themeText].forEach(inp => inp.addEventListener("input", () => {
-    state.settings.themeStudio.a = themeA.value;
-    state.settings.themeStudio.b = themeB.value;
-    state.settings.themeStudio.c = themeC.value;
+  themeText.addEventListener("input", () => {
     state.settings.themeStudio.text = themeText.value;
     saveState();
-  }));
-  themeMode.addEventListener("change", () => { state.settings.themeStudio.mode = themeMode.value; saveState(); });
-  themeStops.addEventListener("change", () => {
-    state.settings.themeStudio.stops = Number(themeStops.value) === 3 ? 3 : 2;
-    themeC.disabled = Number(themeStops.value) !== 3;
-    saveState();
   });
+  themeMode.addEventListener("change", () => { state.settings.themeStudio.mode = themeMode.value; saveState(); });
   themeLighten.addEventListener("input", () => { state.settings.themeStudio.lighten = Number(themeLighten.value); saveState(); });
   themeDarken.addEventListener("input", () => { state.settings.themeStudio.darken = Number(themeDarken.value); saveState(); });
+  themePaletteList.addEventListener("input", (e) => {
+    const input = e.target.closest('input[type="color"]');
+    if (!input) return;
+    const idx = Number(input.dataset.index);
+    if (!Number.isFinite(idx)) return;
+    state.settings.themeStudio.colors[idx] = input.value;
+    saveState();
+  });
+  addThemeColorBtn.addEventListener("click", () => {
+    const palette = state.settings.themeStudio.colors;
+    const seed = defaultState.settings.themeStudio.colors[palette.length % defaultState.settings.themeStudio.colors.length];
+    palette.push(seed);
+    syncThemeInputs();
+    saveState();
+    toast("Theme color added.", "info");
+  });
+  removeThemeColorBtn.addEventListener("click", () => {
+    const palette = state.settings.themeStudio.colors;
+    if (palette.length <= 2) return toast("Minimal 2 warna untuk palette.", "error");
+    palette.pop();
+    syncThemeInputs();
+    saveState();
+    toast("Theme color removed.", "info");
+  });
   applyThemeBtn.addEventListener("click", applyThemeToAll);
   randomThemeBtn.addEventListener("click", randomizeTheme);
 
@@ -1311,10 +1383,19 @@
       state.settings.background = Object.assign(clone(defaultState.settings.background), parsed.settings?.background || {});
       state.options = Array.isArray(state.options) ? state.options : clone(defaultState.options);
 
+      const importedLegacyTheme = parsed.settings?.themeStudio || {};
+      const importedLegacyColors = [importedLegacyTheme.a, importedLegacyTheme.b, importedLegacyTheme.c].filter(Boolean);
+      state.settings.themeStudio.colors = Array.isArray(state.settings.themeStudio.colors)
+        ? state.settings.themeStudio.colors.filter(Boolean)
+        : importedLegacyColors;
+      if (!state.settings.themeStudio.colors.length) state.settings.themeStudio.colors = clone(defaultState.settings.themeStudio.colors);
+
       if (!Array.isArray(state.settings.prizeList)) state.settings.prizeList = clone(defaultState.settings.prizeList);
       state.settings.prizeCursor = clamp(Number(state.settings.prizeCursor)||0, 0, state.settings.prizeList.length);
       state.settings.spinCount = clamp(Number(state.settings.spinCount)||0, 0, 999999);
       state.settings.soundVolume = clamp(Number(state.settings.soundVolume)||0.7, 0, 1);
+      state.settings.nameFontSize = Math.max(1, Number(state.settings.nameFontSize) || defaultState.settings.nameFontSize);
+      state.settings.tableFontSize = Math.max(1, Number(state.settings.tableFontSize) || defaultState.settings.tableFontSize);
 
       frozenWheel = null;
       saveState();

@@ -1290,7 +1290,6 @@
     scheduleSave();
     drawWheel();
   });
-
   // Theme studio (slices)
   themeText.addEventListener("input", () => {
     state.settings.themeStudio.text = themeText.value;

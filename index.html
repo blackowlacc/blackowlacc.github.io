@@ -196,6 +196,15 @@ Tiket jalan-jalan"></textarea>
         </div>
 
         <div class="panelCard">
+          <div class="panelTitle">Text Size Studio</div>
+          <div class="grid2">
+            <label class="field"><span>Name size (px)</span><input id="nameFontSize" type="number" min="1" step="1" class="input"/></label>
+            <label class="field"><span>Table size (px)</span><input id="tableFontSize" type="number" min="1" step="1" class="input"/></label>
+          </div>
+          <div class="smallHint">Tanpa batas maksimum. Gunakan angka besar jika ingin teks slice lebih dominan.</div>
+        </div>
+
+        <div class="panelCard">
           <div class="panelTitle">Wheel Options</div>
           <div class="grid2">
             <label class="field">
@@ -287,10 +296,14 @@ Tiket jalan-jalan"></textarea>
 
         <div class="panelCard">
           <div class="panelTitle">Theme Studio (Slices)</div>
+          <div class="panelRow themePaletteHead">
+            <div class="pill">Palette colors</div>
+            <button id="addThemeColorBtn" class="btn ghost">+ Add color</button>
+            <button id="removeThemeColorBtn" class="btn ghost">- Remove color</button>
+          </div>
+          <div id="themePaletteList" class="themePaletteList"></div>
+
           <div class="grid2">
-            <label class="field"><span>Color A</span><input id="themeA" type="color" /></label>
-            <label class="field"><span>Color B</span><input id="themeB" type="color" /></label>
-            <label class="field"><span>Color C</span><input id="themeC" type="color" /></label>
             <label class="field"><span>Default Text</span><input id="themeText" type="color" /></label>
 
             <label class="field">
@@ -302,17 +315,11 @@ Tiket jalan-jalan"></textarea>
               </select>
             </label>
 
-            <label class="field">
-              <span>Stops</span>
-              <select id="themeStops" class="select">
-                <option value="2">2 colors (A→B)</option>
-                <option value="3">3 colors (A→B→C)</option>
-              </select>
-            </label>
-
             <label class="field"><span>Lighten (Color1)</span><input id="themeLighten" type="range" min="-0.20" max="0.35" step="0.01"/></label>
             <label class="field"><span>Darken (Color2)</span><input id="themeDarken" type="range" min="-0.40" max="0.20" step="0.01"/></label>
           </div>
+
+          <div class="smallHint">Sekarang palette bisa 2, 3, 6, atau lebih warna. Mode Spectrum akan membaurkan semua warna palette secara merata.</div>
 
           <div class="panelRow">
             <button id="applyThemeBtn" class="btn primary">Apply to all slices</button>
